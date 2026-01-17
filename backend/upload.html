@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Expense Tracker - Upload</title>
+</head>
+
+<body>
+
+    <h2>Upload Bank / UPI Statement</h2>
+
+    <!--
+        This form sends the selected file to backend
+        action="/upload"  -> backend route
+        method="POST"     -> sending data
+        enctype="multipart/form-data" -> required for file upload
+    -->
+    <form action="/upload" method="POST" enctype="multipart/form-data">
+
+        <!-- File picker -->
+        <input type="file" name="file" />
+
+        <br><br>
+
+        <!-- Submit button -->
+        <button type="submit">Upload</button>
+
+    </form>
+
+</body>
+</html>
