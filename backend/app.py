@@ -50,22 +50,19 @@ def upload():
             rows.append(row)
 
 
-    # ---------- NORMALIZE TRANSACTIONS ----------
-    normalized_transactions = []
+    # ---------- NORMALIZE + CATEGORIZE ----------
+    transactions = []
 
     for row in rows:
         raw_amount = float(row["Amount"])
 
-        # CASE 1: DR / CR column exists (official statements)
+        # Detect debit / credit
         if "Type" in row and row["Type"]:
             if row["Type"].strip().upper() in ["DR", "DEBIT"]:
                 txn_type = "debit"
             else:
                 txn_type = "credit"
-
             amount_value = raw_amount
-
-        # CASE 2: No Type column → use sign
         else:
             if raw_amount < 0:
                 txn_type = "debit"
@@ -74,18 +71,36 @@ def upload():
                 txn_type = "credit"
                 amount_value = raw_amount
 
+        description = row.get("Description", "").lower()
 
-        normalized_transactions.append({
+        # Categorization logic
+        if "swiggy" in description or "zomato" in description:
+            category = "Food"
+        elif "amazon" in description or "flipkart" in description:
+            category = "Shopping"
+        elif "uber" in description or "ola" in description:
+            category = "Travel"
+        elif "salary" in description:
+            category = "Income"
+        elif "recharge" in description:
+            category = "Utilities"
+        elif "rent" in description:
+            category = "Rent"
+        else:
+            category = "Others"
+
+        transactions.append({
             "date": row.get("Date", ""),
             "description": row.get("Description", ""),
             "amount": amount_value,
-            "type": txn_type
+            "type": txn_type,
+            "category": category
         })
 
 
     return {
-        "message": "CSV uploaded and normalized using bank-style logic",
-        "transactions": normalized_transactions
+        "message": "CSV uploaded, normalized and categorized successfully",
+        "transactions": transactions
     }
 
 
