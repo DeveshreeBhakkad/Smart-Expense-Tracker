@@ -1,58 +1,26 @@
-# =========================================
-# IMPORTS
-# =========================================
-
-# Flask is used to create backend server
-# request is used to receive files from UI
 from flask import Flask, request
-
-# os is used for file and folder paths
 import os
-
-# csv is used to read CSV files
 import csv
-
-
-# =========================================
-# CREATE FLASK APP
-# =========================================
 
 app = Flask(__name__)
 
-
-# =========================================
-# HOME ROUTE (JUST TO CHECK SERVER)
-# =========================================
 
 @app.route("/")
 def home():
     return "Smart Expense Tracker backend is running!"
 
 
-# =========================================
-# UPLOAD FORM ROUTE (SHOW UI)
-# =========================================
-
 @app.route("/upload-form")
 def upload_form():
-    # Get directory where app.py exists
     base_dir = os.path.dirname(os.path.abspath(__file__))
-
-    # Build full path to upload.html
     html_path = os.path.join(base_dir, "upload.html")
-
-    # Return HTML content to browser
     return open(html_path).read()
 
-
-# =========================================
-# FILE UPLOAD + CSV READ ROUTE
-# =========================================
 
 @app.route("/upload", methods=["POST"])
 def upload():
 
-    # -------- STEP 1: CHECK FILE EXISTS --------
+    # ---------- FILE CHECK ----------
     if "file" not in request.files:
         return "No file part in request"
 
@@ -62,22 +30,18 @@ def upload():
         return "No file selected"
 
 
-    # -------- STEP 2: SAVE FILE --------
+    # ---------- SAVE FILE ----------
     base_dir = os.path.dirname(os.path.abspath(__file__))
     upload_folder = os.path.join(base_dir, "uploads")
 
-    # Create uploads folder if not exists
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
 
-    # Full file path
     file_path = os.path.join(upload_folder, file.filename)
-
-    # Save file to disk
     file.save(file_path)
 
 
-    # -------- STEP 3: READ CSV FILE (PHASE 3) --------
+    # ---------- READ CSV ----------
     rows = []
 
     with open(file_path, newline="", encoding="utf-8") as csvfile:
@@ -86,16 +50,44 @@ def upload():
             rows.append(row)
 
 
-    # -------- STEP 4: RETURN DATA (TEMPORARY) --------
+    # ---------- NORMALIZE TRANSACTIONS ----------
+    normalized_transactions = []
+
+    for row in rows:
+        raw_amount = float(row["Amount"])
+
+        # CASE 1: DR / CR column exists (official statements)
+        if "Type" in row and row["Type"]:
+            if row["Type"].strip().upper() in ["DR", "DEBIT"]:
+                txn_type = "debit"
+            else:
+                txn_type = "credit"
+
+            amount_value = raw_amount
+
+        # CASE 2: No Type column → use sign
+        else:
+            if raw_amount < 0:
+                txn_type = "debit"
+                amount_value = abs(raw_amount)
+            else:
+                txn_type = "credit"
+                amount_value = raw_amount
+
+
+        normalized_transactions.append({
+            "date": row.get("Date", ""),
+            "description": row.get("Description", ""),
+            "amount": amount_value,
+            "type": txn_type
+        })
+
+
     return {
-        "message": "CSV file uploaded and read successfully",
-        "rows": rows
+        "message": "CSV uploaded and normalized using bank-style logic",
+        "transactions": normalized_transactions
     }
 
-
-# =========================================
-# RUN SERVER
-# =========================================
 
 if __name__ == "__main__":
     app.run(debug=True)
