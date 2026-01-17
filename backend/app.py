@@ -1,90 +1,101 @@
-# -----------------------------
+# =========================================
 # IMPORTS
-# -----------------------------
+# =========================================
 
-# Flask is used to create the backend server
-# request is used to receive data (files, forms) from frontend
+# Flask is used to create backend server
+# request is used to receive files from UI
 from flask import Flask, request
 
-# os is used to safely work with file paths
+# os is used for file and folder paths
 import os
 
+# csv is used to read CSV files
+import csv
 
-# -----------------------------
+
+# =========================================
 # CREATE FLASK APP
-# -----------------------------
+# =========================================
 
-# This creates the Flask application (backend)
 app = Flask(__name__)
 
 
-# -----------------------------
-# HOME ROUTE
-# -----------------------------
-# This route is just to check if backend is running
+# =========================================
+# HOME ROUTE (JUST TO CHECK SERVER)
+# =========================================
 
 @app.route("/")
 def home():
     return "Smart Expense Tracker backend is running!"
 
 
-# -----------------------------
-# UPLOAD FORM ROUTE (UI)
-# -----------------------------
-# This route shows the HTML upload page in browser
+# =========================================
+# UPLOAD FORM ROUTE (SHOW UI)
+# =========================================
 
 @app.route("/upload-form")
 def upload_form():
-    # Get the directory where app.py is located
+    # Get directory where app.py exists
     base_dir = os.path.dirname(os.path.abspath(__file__))
 
-    # Create full path to upload.html
+    # Build full path to upload.html
     html_path = os.path.join(base_dir, "upload.html")
 
-    # Open and return HTML file content
+    # Return HTML content to browser
     return open(html_path).read()
 
 
-# -----------------------------
-# FILE UPLOAD ROUTE (LOGIC)
-# -----------------------------
-# This route receives the uploaded file from UI
+# =========================================
+# FILE UPLOAD + CSV READ ROUTE
+# =========================================
 
 @app.route("/upload", methods=["POST"])
 def upload():
-    # Step 1: Check if file key exists in request
+
+    # -------- STEP 1: CHECK FILE EXISTS --------
     if "file" not in request.files:
         return "No file part in request"
 
-    # Step 2: Get the file object
     file = request.files["file"]
 
-    # Step 3: Check if user selected a file
     if file.filename == "":
         return "No file selected"
 
-    # Step 4: Build safe path to uploads folder
+
+    # -------- STEP 2: SAVE FILE --------
     base_dir = os.path.dirname(os.path.abspath(__file__))
     upload_folder = os.path.join(base_dir, "uploads")
 
-    # Step 5: Create uploads folder if it doesn't exist
+    # Create uploads folder if not exists
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
 
-    # Step 6: Full path where file will be saved
+    # Full file path
     file_path = os.path.join(upload_folder, file.filename)
 
-    # Step 7: Save file to disk
+    # Save file to disk
     file.save(file_path)
 
-    # Step 8: Send success message
-    return f"File '{file.filename}' uploaded successfully!"
+
+    # -------- STEP 3: READ CSV FILE (PHASE 3) --------
+    rows = []
+
+    with open(file_path, newline="", encoding="utf-8") as csvfile:
+        reader = csv.DictReader(csvfile)
+        for row in reader:
+            rows.append(row)
 
 
-# -----------------------------
-# RUN THE SERVER
-# -----------------------------
+    # -------- STEP 4: RETURN DATA (TEMPORARY) --------
+    return {
+        "message": "CSV file uploaded and read successfully",
+        "rows": rows
+    }
 
-# This ensures the app runs only when app.py is executed directly
+
+# =========================================
+# RUN SERVER
+# =========================================
+
 if __name__ == "__main__":
     app.run(debug=True)
