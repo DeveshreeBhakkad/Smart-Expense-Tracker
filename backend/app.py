@@ -1,10 +1,13 @@
-from flask import Flask, request
+from flask import Flask, request, send_file
 import os
 import csv
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
+
+# Store last generated PDF path (simple approach for now)
+LAST_PDF_PATH = None
 
 
 @app.route("/")
@@ -21,6 +24,7 @@ def upload_form():
 
 @app.route("/upload", methods=["POST"])
 def upload():
+    global LAST_PDF_PATH
 
     # ---------- FILE CHECK ----------
     if "file" not in request.files:
@@ -35,7 +39,6 @@ def upload():
     # ---------- SAVE FILE ----------
     base_dir = os.path.dirname(os.path.abspath(__file__))
     upload_folder = os.path.join(base_dir, "uploads")
-
     if not os.path.exists(upload_folder):
         os.makedirs(upload_folder)
 
@@ -53,7 +56,6 @@ def upload():
 
     # ---------- NORMALIZE + CATEGORIZE ----------
     transactions = []
-
     for row in rows:
         raw_amount = float(row["Amount"])
 
@@ -112,8 +114,9 @@ def upload():
         os.makedirs(report_folder)
 
     pdf_path = os.path.join(report_folder, "expense_report.pdf")
-    c = canvas.Canvas(pdf_path, pagesize=A4)
+    LAST_PDF_PATH = pdf_path
 
+    c = canvas.Canvas(pdf_path, pagesize=A4)
     width, height = A4
     y = height - 40
 
@@ -122,11 +125,11 @@ def upload():
     y -= 30
 
     c.setFont("Helvetica", 10)
-    c.drawString(40, y, "Date")
-    c.drawString(120, y, "Description")
-    c.drawString(300, y, "Amount")
-    c.drawString(360, y, "Type")
-    c.drawString(420, y, "Category")
+    headers = ["Date", "Description", "Amount", "Type", "Category"]
+    x_positions = [40, 120, 300, 360, 420]
+
+    for i, header in enumerate(headers):
+        c.drawString(x_positions[i], y, header)
     y -= 20
 
     for txn in transactions:
@@ -160,9 +163,20 @@ def upload():
 
 
     return {
-        "message": "Expense report generated successfully",
-        "pdf_path": pdf_path
+        "message": "Expense report generated",
+        "download_url": "/download-report"
     }
+
+
+@app.route("/download-report")
+def download_report():
+    if LAST_PDF_PATH and os.path.exists(LAST_PDF_PATH):
+        return send_file(
+            LAST_PDF_PATH,
+            as_attachment=True,
+            download_name="expense_report.pdf"
+        )
+    return "No report available", 404
 
 
 if __name__ == "__main__":
