@@ -10,25 +10,81 @@ LAST_PDF_PATH = None
 
 
 # ===============================
-# HOME → REDIRECT TO UI
+# HOME → UI
 # ===============================
 @app.route("/")
 def home():
     return redirect("/upload-form")
 
 
-# ===============================
-# UI PAGE
-# ===============================
 @app.route("/upload-form")
 def upload_form():
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    html_path = os.path.join(base_dir, "upload.html")
-    return open(html_path, encoding="utf-8").read()
+    return open(os.path.join(base_dir, "upload.html"), encoding="utf-8").read()
 
 
 # ===============================
-# UPLOAD + PROCESS
+# UNIVERSAL ROW PARSER
+# ===============================
+def parse_transaction_row(row):
+    """
+    Returns (amount, txn_type) or None
+    Handles:
+    - Amount
+    - Debit / Credit
+    - Withdrawal / Deposit
+    - DR / CR
+    """
+
+    def clean(value):
+        return value.replace(",", "").strip()
+
+    # 1️⃣ Debit / Credit columns
+    for debit_key in ["Debit", "Withdrawal"]:
+        if debit_key in row and row[debit_key].strip():
+            try:
+                return float(clean(row[debit_key])), "debit"
+            except:
+                return None
+
+    for credit_key in ["Credit", "Deposit"]:
+        if credit_key in row and row[credit_key].strip():
+            try:
+                return float(clean(row[credit_key])), "credit"
+            except:
+                return None
+
+    # 2️⃣ Amount + Type column
+    if "Amount" in row and row["Amount"].strip():
+        try:
+            amount = float(clean(row["Amount"]))
+        except:
+            return None
+
+        txn_type = None
+
+        for type_key in ["Type", "Dr/Cr", "DRCR"]:
+            if type_key in row:
+                value = row[type_key].upper()
+                if "DR" in value or "DEBIT" in value:
+                    txn_type = "debit"
+                elif "CR" in value or "CREDIT" in value:
+                    txn_type = "credit"
+
+        if txn_type:
+            return abs(amount), txn_type
+
+        # fallback: sign based
+        if amount < 0:
+            return abs(amount), "debit"
+        else:
+            return amount, "credit"
+
+    return None
+
+
+# ===============================
+# UPLOAD ROUTE
 # ===============================
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -38,54 +94,32 @@ def upload():
         return {"error": "No file uploaded"}, 400
 
     file = request.files["file"]
-
     if file.filename == "":
         return {"error": "No file selected"}, 400
 
-
-    # ---------- SAVE FILE ----------
     base_dir = os.path.dirname(os.path.abspath(__file__))
-    upload_folder = os.path.join(base_dir, "uploads")
-    os.makedirs(upload_folder, exist_ok=True)
+    upload_dir = os.path.join(base_dir, "uploads")
+    os.makedirs(upload_dir, exist_ok=True)
 
-    file_path = os.path.join(upload_folder, file.filename)
+    file_path = os.path.join(upload_dir, file.filename)
     file.save(file_path)
 
-
     # ---------- READ CSV ----------
-    rows = []
     try:
-        with open(file_path, newline="", encoding="utf-8") as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                rows.append(row)
-    except Exception:
+        with open(file_path, newline="", encoding="utf-8") as f:
+            reader = csv.DictReader(f)
+            rows = list(reader)
+    except:
         return {"error": "Invalid CSV file"}, 400
 
-
-    # ---------- NORMALIZE + CATEGORIZE ----------
     transactions = []
 
     for row in rows:
-        try:
-            raw_amount = float(row["Amount"])
-        except Exception:
-            continue  # skip bad rows
+        parsed = parse_transaction_row(row)
+        if not parsed:
+            continue
 
-        if "Type" in row and row["Type"]:
-            if row["Type"].strip().upper() in ["DR", "DEBIT"]:
-                txn_type = "debit"
-            else:
-                txn_type = "credit"
-            amount_value = raw_amount
-        else:
-            if raw_amount < 0:
-                txn_type = "debit"
-                amount_value = abs(raw_amount)
-            else:
-                txn_type = "credit"
-                amount_value = raw_amount
-
+        amount, txn_type = parsed
         description = row.get("Description", "").lower()
 
         if txn_type == "credit":
@@ -106,14 +140,13 @@ def upload():
         transactions.append({
             "date": row.get("Date", ""),
             "description": row.get("Description", ""),
-            "amount": amount_value,
+            "amount": amount,
             "type": txn_type,
             "category": category
         })
 
     if not transactions:
         return {"error": "No valid transactions found"}, 400
-
 
     # ---------- SUMMARY ----------
     category_summary = {}
@@ -122,22 +155,20 @@ def upload():
 
     for txn in transactions:
         if txn["type"] == "debit":
-            category_summary[txn["category"]] = category_summary.get(txn["category"], 0) + txn["amount"]
             total_debit += txn["amount"]
+            category_summary[txn["category"]] = category_summary.get(txn["category"], 0) + txn["amount"]
         else:
             total_credit += txn["amount"]
 
+    # ---------- PDF ----------
+    report_dir = os.path.join(base_dir, "reports")
+    os.makedirs(report_dir, exist_ok=True)
 
-    # ---------- PDF GENERATION ----------
-    report_folder = os.path.join(base_dir, "reports")
-    os.makedirs(report_folder, exist_ok=True)
-
-    pdf_path = os.path.join(report_folder, "expense_report.pdf")
+    pdf_path = os.path.join(report_dir, "expense_report.pdf")
     LAST_PDF_PATH = pdf_path
 
     c = canvas.Canvas(pdf_path, pagesize=A4)
-    width, height = A4
-    y = height - 40
+    y = 800
 
     c.setFont("Helvetica-Bold", 16)
     c.drawString(40, y, "Expense Report")
@@ -154,7 +185,7 @@ def upload():
     for txn in transactions:
         if y < 50:
             c.showPage()
-            y = height - 40
+            y = 800
 
         c.drawString(40, y, txn["date"])
         c.drawString(120, y, txn["description"][:25])
@@ -165,15 +196,6 @@ def upload():
 
     y -= 20
     c.setFont("Helvetica-Bold", 12)
-    c.drawString(40, y, "Summary")
-    y -= 20
-
-    c.setFont("Helvetica", 10)
-    for cat, amt in category_summary.items():
-        c.drawString(40, y, f"{cat}: {amt}")
-        y -= 15
-
-    y -= 10
     c.drawString(40, y, f"Total Debit: {total_debit}")
     y -= 15
     c.drawString(40, y, f"Total Credit: {total_credit}")
@@ -193,11 +215,7 @@ def upload():
 @app.route("/download-report")
 def download_report():
     if LAST_PDF_PATH and os.path.exists(LAST_PDF_PATH):
-        return send_file(
-            LAST_PDF_PATH,
-            as_attachment=True,
-            download_name="expense_report.pdf"
-        )
+        return send_file(LAST_PDF_PATH, as_attachment=True, download_name="expense_report.pdf")
     return {"error": "No report available"}, 404
 
 
