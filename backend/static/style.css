@@ -1,0 +1,129 @@
+/* ---------- GLOBAL ---------- */
+body {
+    margin: 0;
+    font-family: "Segoe UI", sans-serif;
+    background-color: #0b1320; /* dark navy */
+    color: #e5e7eb;
+}
+
+/* ---------- HEADER ---------- */
+.header {
+    text-align: center;
+    padding: 40px 20px;
+}
+
+.header h1 {
+    margin: 0;
+    font-size: 36px;
+    color: #a7f3d0; /* soft neon green */
+}
+
+.header p {
+    margin-top: 10px;
+    color: #9ca3af;
+}
+
+/* ---------- CONTAINER ---------- */
+.container {
+    max-width: 900px;
+    margin: auto;
+    padding: 20px;
+}
+
+/* ---------- CARD ---------- */
+.card {
+    background-color: #111827;
+    border-radius: 12px;
+    padding: 25px;
+    margin-bottom: 30px;
+}
+
+.card h2 {
+    margin-top: 0;
+    color: #a7f3d0;
+}
+
+input[type="file"] {
+    display: block;
+    margin: 15px 0;
+    color: #e5e7eb;
+}
+
+button {
+    background-color: #22c55e;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 8px;
+    font-size: 15px;
+    cursor: pointer;
+    color: #052e16;
+}
+
+button:hover {
+    background-color: #16a34a;
+}
+
+/* ---------- SUMMARY ---------- */
+.summary {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 20px;
+    margin-bottom: 30px;
+}
+
+.summary-card {
+    background-color: #111827;
+    padding: 20px;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.summary-card h3 {
+    margin-bottom: 10px;
+    color: #9ca3af;
+}
+
+.summary-card p {
+    font-size: 22px;
+    color: #a7f3d0;
+}
+
+/* ---------- DOWNLOAD ---------- */
+.download {
+    text-align: center;
+}
+
+.download-btn {
+    text-decoration: none;
+    background-color: transparent;
+    border: 2px solid #22c55e;
+    padding: 12px 25px;
+    border-radius: 10px;
+    color: #a7f3d0;
+    font-weight: 600;
+}
+
+.download-btn:hover {
+    background-color: #0f7334;
+    color: #052e16;
+}
+
+/* ---------- HINT ---------- */
+.hint {
+    color: #6b7280;
+    font-size: 14px;
+}
+
+/* ---------- STATUS MESSAGE ---------- */
+.status {
+    margin-top: 15px;
+    font-size: 14px;
+}
+
+.status.success {
+    color: #22c55e;
+}
+
+.status.error {
+    color: #ef4444;
+}

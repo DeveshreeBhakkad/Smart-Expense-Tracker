@@ -1,4 +1,4 @@
-from flask import Flask, request, send_file
+from flask import Flask, request, send_file, redirect
 import os
 import csv
 from reportlab.lib.pagesizes import A4
@@ -6,41 +6,47 @@ from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 
-# Store last generated PDF path (simple approach for now)
 LAST_PDF_PATH = None
 
 
+# ===============================
+# HOME → REDIRECT TO UI
+# ===============================
 @app.route("/")
 def home():
-    return "Smart Expense Tracker backend is running!"
+    return redirect("/upload-form")
 
 
+# ===============================
+# UI PAGE
+# ===============================
 @app.route("/upload-form")
 def upload_form():
     base_dir = os.path.dirname(os.path.abspath(__file__))
     html_path = os.path.join(base_dir, "upload.html")
-    return open(html_path).read()
+    return open(html_path, encoding="utf-8").read()
 
 
+# ===============================
+# UPLOAD + PROCESS
+# ===============================
 @app.route("/upload", methods=["POST"])
 def upload():
     global LAST_PDF_PATH
 
-    # ---------- FILE CHECK ----------
     if "file" not in request.files:
-        return "No file part in request"
+        return {"error": "No file uploaded"}, 400
 
     file = request.files["file"]
 
     if file.filename == "":
-        return "No file selected"
+        return {"error": "No file selected"}, 400
 
 
     # ---------- SAVE FILE ----------
     base_dir = os.path.dirname(os.path.abspath(__file__))
     upload_folder = os.path.join(base_dir, "uploads")
-    if not os.path.exists(upload_folder):
-        os.makedirs(upload_folder)
+    os.makedirs(upload_folder, exist_ok=True)
 
     file_path = os.path.join(upload_folder, file.filename)
     file.save(file_path)
@@ -48,16 +54,23 @@ def upload():
 
     # ---------- READ CSV ----------
     rows = []
-    with open(file_path, newline="", encoding="utf-8") as csvfile:
-        reader = csv.DictReader(csvfile)
-        for row in reader:
-            rows.append(row)
+    try:
+        with open(file_path, newline="", encoding="utf-8") as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                rows.append(row)
+    except Exception:
+        return {"error": "Invalid CSV file"}, 400
 
 
     # ---------- NORMALIZE + CATEGORIZE ----------
     transactions = []
+
     for row in rows:
-        raw_amount = float(row["Amount"])
+        try:
+            raw_amount = float(row["Amount"])
+        except Exception:
+            continue  # skip bad rows
 
         if "Type" in row and row["Type"]:
             if row["Type"].strip().upper() in ["DR", "DEBIT"]:
@@ -75,14 +88,18 @@ def upload():
 
         description = row.get("Description", "").lower()
 
-        if "swiggy" in description or "zomato" in description:
+        if txn_type == "credit":
+            category = "Income"
+        elif "swiggy" in description or "zomato" in description:
             category = "Food"
         elif "amazon" in description or "flipkart" in description:
             category = "Shopping"
         elif "uber" in description or "ola" in description:
             category = "Travel"
-        elif "salary" in description:
-            category = "Income"
+        elif "recharge" in description:
+            category = "Utilities"
+        elif "rent" in description:
+            category = "Rent"
         else:
             category = "Others"
 
@@ -93,6 +110,9 @@ def upload():
             "type": txn_type,
             "category": category
         })
+
+    if not transactions:
+        return {"error": "No valid transactions found"}, 400
 
 
     # ---------- SUMMARY ----------
@@ -110,8 +130,7 @@ def upload():
 
     # ---------- PDF GENERATION ----------
     report_folder = os.path.join(base_dir, "reports")
-    if not os.path.exists(report_folder):
-        os.makedirs(report_folder)
+    os.makedirs(report_folder, exist_ok=True)
 
     pdf_path = os.path.join(report_folder, "expense_report.pdf")
     LAST_PDF_PATH = pdf_path
@@ -126,10 +145,10 @@ def upload():
 
     c.setFont("Helvetica", 10)
     headers = ["Date", "Description", "Amount", "Type", "Category"]
-    x_positions = [40, 120, 300, 360, 420]
+    x = [40, 120, 300, 360, 420]
 
-    for i, header in enumerate(headers):
-        c.drawString(x_positions[i], y, header)
+    for i in range(len(headers)):
+        c.drawString(x[i], y, headers[i])
     y -= 20
 
     for txn in transactions:
@@ -161,13 +180,16 @@ def upload():
 
     c.save()
 
-
     return {
-        "message": "Expense report generated",
-        "download_url": "/download-report"
+        "total_debit": total_debit,
+        "total_credit": total_credit,
+        "category_summary": category_summary
     }
 
 
+# ===============================
+# DOWNLOAD PDF
+# ===============================
 @app.route("/download-report")
 def download_report():
     if LAST_PDF_PATH and os.path.exists(LAST_PDF_PATH):
@@ -176,7 +198,7 @@ def download_report():
             as_attachment=True,
             download_name="expense_report.pdf"
         )
-    return "No report available", 404
+    return {"error": "No report available"}, 404
 
 
 if __name__ == "__main__":
