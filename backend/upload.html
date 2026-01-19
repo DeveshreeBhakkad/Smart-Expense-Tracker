@@ -1,64 +1,48 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>Smart Expense Tracker</title>
-    <link rel="stylesheet" href="/static/style.css">
+  <title>Smart Expense Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
 <header class="header">
-    <h1>Smart Expense Tracker</h1>
-    <p>Upload your bank statement & track expenses intelligently</p>
+  <h1>Smart Expense Tracker</h1>
+  <p>Upload your bank statement & track expenses intelligently</p>
 </header>
 
-<div class="container">
+<div class="container two-col">
 
-    <!-- Upload Card -->
+  <!-- LEFT -->
+  <div class="left">
+
     <div class="card">
-        <h2>Upload Statement</h2>
-
-        <form id="uploadForm" enctype="multipart/form-data">
-            <input type="file" name="file" required>
-            <button type="submit" id="uploadBtn">Upload & Process</button>
-        </form>
-
-        <p id="statusMessage" class="status"></p>
-        <p class="hint">Supported format: CSV</p>
+      <h2>Upload Statement</h2>
+      <form id="uploadForm">
+        <input type="file" name="file" required>
+        <button id="uploadBtn">Upload & Process</button>
+      </form>
+      <p id="statusMessage" class="status"></p>
     </div>
 
-    <!-- Summary Cards -->
-    <div class="summary">
-        <div class="summary-card">
-            <h3>Total Debit</h3>
-            <p id="totalDebit">₹ —</p>
-        </div>
-
-        <div class="summary-card">
-            <h3>Total Credit</h3>
-            <p id="totalCredit">₹ —</p>
-        </div>
-
-        <div class="summary-card">
-            <h3>Top Category</h3>
-            <p id="topCategory">—</p>
-        </div>
-    </div>
-
-    <!-- Monthly Insight Section -->
     <div class="card">
-        <h2>Monthly Expenses</h2>
-        <ul id="monthlyList">
-            <li style="color:#6b7280;">No data yet</li>
-        </ul>
+      <h2>Monthly Expenses</h2>
+      <div id="monthlyContainer"></div>
     </div>
 
-    <!-- Download -->
-    <div class="download">
-        <a href="/download-report" class="download-btn">
-            Download PDF Report
-        </a>
-    </div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+
+    <div class="summary-card">Total Expense<br><b id="totalExpense">₹ —</b></div>
+    <div class="summary-card">Total Debit<br><b id="totalDebit">₹ —</b></div>
+    <div class="summary-card">Total Credit<br><b id="totalCredit">₹ —</b></div>
+    <div class="summary-card">Top Category<br><b id="topCategory">—</b></div>
+
+    <a href="/download-report" class="download-btn">Download PDF</a>
+
+  </div>
 
 </div>
 

@@ -1,78 +1,65 @@
-document.getElementById("uploadForm").addEventListener("submit", async function (e) {
-    e.preventDefault();
+document.getElementById("uploadForm").addEventListener("submit", async e => {
+  e.preventDefault();
 
-    const fileInput = document.querySelector('input[type="file"]');
-    const uploadBtn = document.getElementById("uploadBtn");
-    const statusMsg = document.getElementById("statusMessage");
-    const monthlyList = document.getElementById("monthlyList");
+  const file = document.querySelector("input[type=file]").files[0];
+  const btn = document.getElementById("uploadBtn");
+  const status = document.getElementById("statusMessage");
+  const monthlyBox = document.getElementById("monthlyContainer");
 
-    statusMsg.innerText = "";
-    statusMsg.className = "status";
+  status.innerText = "";
+  btn.disabled = true;
+  btn.innerText = "Processing...";
 
-    if (!fileInput.files.length) {
-        statusMsg.innerText = "Please select a CSV file.";
-        statusMsg.classList.add("error");
-        return;
+  const fd = new FormData();
+  fd.append("file", file);
+
+  try {
+    const res = await fetch("/upload", { method: "POST", body: fd });
+    const data = await res.json();
+
+    if (data.error) {
+      status.innerText = data.error;
+      status.className = "status error";
+      return;
     }
 
-    const formData = new FormData();
-    formData.append("file", fileInput.files[0]);
+    document.getElementById("totalExpense").innerText = "₹ " + data.total_expense;
+    document.getElementById("totalDebit").innerText = "₹ " + data.total_debit;
+    document.getElementById("totalCredit").innerText = "₹ " + data.total_credit;
+    document.getElementById("topCategory").innerText = data.top_category;
 
-    uploadBtn.disabled = true;
-    uploadBtn.innerText = "Processing...";
+    monthlyBox.innerHTML = "";
 
-    try {
-        const response = await fetch("/upload", {
-            method: "POST",
-            body: formData
-        });
+    Object.keys(data.monthly_expense).sort().forEach(month => {
+      const div = document.createElement("div");
+      div.innerHTML = `▼ ${month} : ₹ ${data.monthly_expense[month]}`;
+      div.style.cursor = "pointer";
 
-        const data = await response.json();
+      const details = document.createElement("ul");
+      details.style.display = "none";
 
-        if (data.error) {
-            statusMsg.innerText = data.error;
-            statusMsg.classList.add("error");
-            return;
-        }
+      Object.entries(data.monthly_category[month]).forEach(([cat, amt]) => {
+        const li = document.createElement("li");
+        li.innerText = `${cat}: ₹ ${amt}`;
+        details.appendChild(li);
+      });
 
-        // Update totals
-        document.getElementById("totalDebit").innerText = "₹ " + data.total_debit;
-        document.getElementById("totalCredit").innerText = "₹ " + data.total_credit;
+      div.onclick = () => {
+        details.style.display = details.style.display === "none" ? "block" : "none";
+      };
 
-        // Top category
-        let topCategory = "—";
-        let maxAmount = 0;
-        for (const cat in data.category_summary) {
-            if (data.category_summary[cat] > maxAmount) {
-                maxAmount = data.category_summary[cat];
-                topCategory = cat;
-            }
-        }
-        document.getElementById("topCategory").innerText = topCategory;
+      monthlyBox.appendChild(div);
+      monthlyBox.appendChild(details);
+    });
 
-        // Monthly expenses
-        monthlyList.innerHTML = "";
+    status.innerText = "Statement processed successfully.";
+    status.className = "status success";
 
-        const months = Object.keys(data.monthly_expense);
-        if (months.length === 0) {
-            monthlyList.innerHTML = "<li>No monthly data available</li>";
-        } else {
-            months.sort().forEach(month => {
-                const li = document.createElement("li");
-                li.innerText = `${month} : ₹ ${data.monthly_expense[month]}`;
-                monthlyList.appendChild(li);
-            });
-        }
-
-        statusMsg.innerText = "Statement processed successfully.";
-        statusMsg.classList.add("success");
-
-    } catch (err) {
-        console.error(err);
-        statusMsg.innerText = "Server error. Please try again.";
-        statusMsg.classList.add("error");
-    } finally {
-        uploadBtn.disabled = false;
-        uploadBtn.innerText = "Upload & Process";
-    }
+  } catch {
+    status.innerText = "Server error.";
+    status.className = "status error";
+  } finally {
+    btn.disabled = false;
+    btn.innerText = "Upload & Process";
+  }
 });

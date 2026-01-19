@@ -1,6 +1,5 @@
 from flask import Flask, request, send_file, redirect
-import os
-import csv
+import os, csv
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
@@ -9,9 +8,6 @@ app = Flask(__name__)
 LAST_PDF_PATH = None
 
 
-# ===============================
-# HOME → UI
-# ===============================
 @app.route("/")
 def home():
     return redirect("/upload-form")
@@ -23,53 +19,36 @@ def upload_form():
     return open(os.path.join(base_dir, "upload.html"), encoding="utf-8").read()
 
 
-# ===============================
-# UNIVERSAL ROW PARSER
-# ===============================
+# ---------- UNIVERSAL CSV ROW PARSER ----------
 def parse_transaction_row(row):
-    def clean(val):
-        return val.replace(",", "").strip()
+    def clean(v): return v.replace(",", "").strip()
 
-    for debit_key in ["Debit", "Withdrawal"]:
-        if debit_key in row and row[debit_key].strip():
-            try:
-                return float(clean(row[debit_key])), "debit"
-            except:
-                return None
+    for k in ["Debit", "Withdrawal"]:
+        if k in row and row[k].strip():
+            try: return float(clean(row[k])), "debit"
+            except: return None
 
-    for credit_key in ["Credit", "Deposit"]:
-        if credit_key in row and row[credit_key].strip():
-            try:
-                return float(clean(row[credit_key])), "credit"
-            except:
-                return None
+    for k in ["Credit", "Deposit"]:
+        if k in row and row[k].strip():
+            try: return float(clean(row[k])), "credit"
+            except: return None
 
     if "Amount" in row and row["Amount"].strip():
-        try:
-            amount = float(clean(row["Amount"]))
-        except:
-            return None
+        try: amt = float(clean(row["Amount"]))
+        except: return None
 
-        txn_type = None
-        for type_key in ["Type", "Dr/Cr", "DRCR"]:
-            if type_key in row:
-                value = row[type_key].upper()
-                if "DR" in value:
-                    txn_type = "debit"
-                elif "CR" in value:
-                    txn_type = "credit"
+        for t in ["Type", "Dr/Cr", "DRCR"]:
+            if t in row:
+                v = row[t].upper()
+                if "DR" in v: return abs(amt), "debit"
+                if "CR" in v: return abs(amt), "credit"
 
-        if txn_type:
-            return abs(amount), txn_type
-
-        return (abs(amount), "debit") if amount < 0 else (amount, "credit")
+        return (abs(amt), "debit") if amt < 0 else (amt, "credit")
 
     return None
 
 
-# ===============================
-# UPLOAD + PROCESS
-# ===============================
+# ---------- UPLOAD ----------
 @app.route("/upload", methods=["POST"])
 def upload():
     global LAST_PDF_PATH
@@ -81,20 +60,22 @@ def upload():
     if file.filename == "":
         return {"error": "No file selected"}, 400
 
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    upload_dir = os.path.join(base_dir, "uploads")
+    base = os.path.dirname(os.path.abspath(__file__))
+    upload_dir = os.path.join(base, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
-
-    file_path = os.path.join(upload_dir, file.filename)
-    file.save(file_path)
+    path = os.path.join(upload_dir, file.filename)
+    file.save(path)
 
     try:
-        with open(file_path, newline="", encoding="utf-8") as f:
+        with open(path, newline="", encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
     except:
-        return {"error": "Invalid CSV file"}, 400
+        return {"error": "Invalid CSV"}, 400
 
-    transactions = []
+    total_debit = total_credit = 0
+    category_summary = {}
+    monthly_expense = {}
+    monthly_category = {}
 
     for row in rows:
         parsed = parse_transaction_row(row)
@@ -102,88 +83,60 @@ def upload():
             continue
 
         amount, txn_type = parsed
-        description = row.get("Description", "").lower()
+        desc = row.get("Description", "").lower()
+        date_str = row.get("Date", "")
 
         if txn_type == "credit":
             category = "Income"
-        elif "swiggy" in description or "zomato" in description:
-            category = "Food"
-        elif "amazon" in description or "flipkart" in description:
-            category = "Shopping"
-        elif "uber" in description or "ola" in description:
-            category = "Travel"
-        elif "recharge" in description:
-            category = "Utilities"
-        elif "rent" in description:
-            category = "Rent"
+            total_credit += amount
         else:
-            category = "Others"
+            if "swiggy" in desc or "zomato" in desc:
+                category = "Food"
+            elif "amazon" in desc or "flipkart" in desc:
+                category = "Shopping"
+            elif "uber" in desc or "ola" in desc:
+                category = "Travel"
+            elif "recharge" in desc:
+                category = "Utilities"
+            else:
+                category = "Others"
 
-        transactions.append({
-            "date": row.get("Date", ""),
-            "amount": amount,
-            "type": txn_type,
-            "category": category
-        })
+            total_debit += amount
+            category_summary[category] = category_summary.get(category, 0) + amount
 
-    if not transactions:
-        return {"error": "No valid transactions"}, 400
-
-    # ===============================
-    # SUMMARY + MONTHLY INSIGHTS
-    # ===============================
-    category_summary = {}
-    monthly_expense = {}
-    total_debit = 0
-    total_credit = 0
-
-    for txn in transactions:
-        if txn["type"] == "debit":
-            total_debit += txn["amount"]
-            category_summary[txn["category"]] = category_summary.get(txn["category"], 0) + txn["amount"]
-
-            # Monthly calculation
             try:
-                dt = datetime.strptime(txn["date"], "%Y-%m-%d")
-                month_key = dt.strftime("%Y-%m")
-                monthly_expense[month_key] = monthly_expense.get(month_key, 0) + txn["amount"]
+                month = datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m")
+                monthly_expense[month] = monthly_expense.get(month, 0) + amount
+                monthly_category.setdefault(month, {})
+                monthly_category[month][category] = monthly_category[month].get(category, 0) + amount
             except:
                 pass
 
-        else:
-            total_credit += txn["amount"]
-
-    # ===============================
-    # PDF (unchanged)
-    # ===============================
-    report_dir = os.path.join(base_dir, "reports")
+    # PDF (kept simple)
+    report_dir = os.path.join(base, "reports")
     os.makedirs(report_dir, exist_ok=True)
-
     pdf_path = os.path.join(report_dir, "expense_report.pdf")
     LAST_PDF_PATH = pdf_path
 
     c = canvas.Canvas(pdf_path, pagesize=A4)
-    y = 800
-    c.setFont("Helvetica-Bold", 16)
-    c.drawString(40, y, "Expense Report")
+    c.drawString(40, 800, "Expense Report")
     c.save()
 
     return {
+        "total_expense": total_debit,
         "total_debit": total_debit,
         "total_credit": total_credit,
-        "category_summary": category_summary,
-        "monthly_expense": monthly_expense
+        "top_category": max(category_summary, key=category_summary.get) if category_summary else "—",
+        "monthly_expense": monthly_expense,
+        "monthly_category": monthly_category
     }
 
 
-# ===============================
-# DOWNLOAD
-# ===============================
 @app.route("/download-report")
 def download_report():
     if LAST_PDF_PATH and os.path.exists(LAST_PDF_PATH):
         return send_file(LAST_PDF_PATH, as_attachment=True)
-    return {"error": "No report available"}, 404
+    return {"error": "No report"}, 404
 
 
 if __name__ == "__main__":
