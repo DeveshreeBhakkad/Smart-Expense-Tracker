@@ -4,6 +4,7 @@ document.getElementById("uploadForm").addEventListener("submit", async function 
     const fileInput = document.querySelector('input[type="file"]');
     const uploadBtn = document.getElementById("uploadBtn");
     const statusMsg = document.getElementById("statusMessage");
+    const monthlyList = document.getElementById("monthlyList");
 
     statusMsg.innerText = "";
     statusMsg.className = "status";
@@ -17,7 +18,6 @@ document.getElementById("uploadForm").addEventListener("submit", async function 
     const formData = new FormData();
     formData.append("file", fileInput.files[0]);
 
-    // Loading state
     uploadBtn.disabled = true;
     uploadBtn.innerText = "Processing...";
 
@@ -35,20 +35,34 @@ document.getElementById("uploadForm").addEventListener("submit", async function 
             return;
         }
 
+        // Update totals
         document.getElementById("totalDebit").innerText = "₹ " + data.total_debit;
         document.getElementById("totalCredit").innerText = "₹ " + data.total_credit;
 
+        // Top category
         let topCategory = "—";
         let maxAmount = 0;
-
         for (const cat in data.category_summary) {
             if (data.category_summary[cat] > maxAmount) {
                 maxAmount = data.category_summary[cat];
                 topCategory = cat;
             }
         }
-
         document.getElementById("topCategory").innerText = topCategory;
+
+        // Monthly expenses
+        monthlyList.innerHTML = "";
+
+        const months = Object.keys(data.monthly_expense);
+        if (months.length === 0) {
+            monthlyList.innerHTML = "<li>No monthly data available</li>";
+        } else {
+            months.sort().forEach(month => {
+                const li = document.createElement("li");
+                li.innerText = `${month} : ₹ ${data.monthly_expense[month]}`;
+                monthlyList.appendChild(li);
+            });
+        }
 
         statusMsg.innerText = "Statement processed successfully.";
         statusMsg.classList.add("success");
