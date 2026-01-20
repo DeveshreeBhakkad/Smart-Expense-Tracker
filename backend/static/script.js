@@ -1,41 +1,62 @@
 const form = document.getElementById("uploadForm");
-const statusMsg = document.getElementById("statusMessage");
-const monthlyBox = document.getElementById("monthlyContainer");
+const statusMessage = document.getElementById("statusMessage");
+const insightsSection = document.getElementById("insights");
+const monthlyContainer = document.getElementById("monthlyContainer");
 
-form.addEventListener("submit", async e => {
-    e.preventDefault();
+form.addEventListener("submit", async (e) => {
+    e.preventDefault(); // STOP page reload
 
-    const file = document.querySelector("input[type=file]").files[0];
-    const btn = document.getElementById("uploadBtn");
+    const fileInput = form.querySelector("input[type='file']");
+    const button = document.getElementById("uploadBtn");
 
-    btn.disabled = true;
-    btn.innerText = "Processing...";
-    statusMsg.innerText = "";
+    if (!fileInput.files.length) {
+        statusMessage.textContent = "Please select a CSV file.";
+        statusMessage.className = "status error";
+        return;
+    }
 
-    const fd = new FormData();
-    fd.append("file", file);
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    button.disabled = true;
+    button.textContent = "Processing…";
+    statusMessage.textContent = "";
 
     try {
-        const res = await fetch("/upload", { method: "POST", body: fd });
-        const data = await res.json();
+        const response = await fetch("/upload", {
+            method: "POST",
+            body: formData
+        });
+
+        const data = await response.json();
 
         if (data.error) {
-            statusMsg.innerText = data.error;
-            statusMsg.className = "status error";
+            statusMessage.textContent = data.error;
+            statusMessage.className = "status error";
             return;
         }
 
-        document.getElementById("totalExpense").innerText = "₹ " + data.total_expense;
-        document.getElementById("totalDebit").innerText = "₹ " + data.total_debit;
-        document.getElementById("totalCredit").innerText = "₹ " + data.total_credit;
-        document.getElementById("topCategory").innerText = data.top_category;
+        // ✅ Reveal insights
+        insightsSection.classList.remove("hidden");
 
-        monthlyBox.innerHTML = "";
+        // ✅ Fill primary insight
+        document.getElementById("totalExpense").textContent = `₹ ${data.total_expense}`;
 
-        Object.keys(data.monthly_expense).sort().forEach(month => {
-            const m = document.createElement("div");
-            m.className = "month";
-            m.innerText = `▼ ${month} : ₹ ${data.monthly_expense[month]}`;
+        // ✅ Supporting context
+        document.getElementById("totalDebit").textContent = `₹ ${data.total_debit}`;
+        document.getElementById("totalCredit").textContent = `₹ ${data.total_credit}`;
+        document.getElementById("topCategory").textContent = data.top_category;
+
+        // ✅ Monthly story
+        monthlyContainer.innerHTML = "";
+
+        Object.keys(data.monthly_expense).forEach(month => {
+            const monthDiv = document.createElement("div");
+            monthDiv.className = "month";
+
+            const title = document.createElement("div");
+            title.className = "month-title";
+            title.textContent = `${month} — ₹ ${data.monthly_expense[month]}`;
 
             const details = document.createElement("div");
             details.className = "month-details";
@@ -43,36 +64,27 @@ form.addEventListener("submit", async e => {
 
             Object.entries(data.monthly_category[month]).forEach(([cat, amt]) => {
                 const p = document.createElement("p");
-                p.innerText = `${cat}: ₹ ${amt}`;
+                p.textContent = `${cat} · ₹ ${amt}`;
                 details.appendChild(p);
             });
 
-            m.onclick = () => {
+            title.onclick = () => {
                 details.style.display = details.style.display === "none" ? "block" : "none";
             };
 
-            monthlyBox.appendChild(m);
-            monthlyBox.appendChild(details);
+            monthDiv.appendChild(title);
+            monthDiv.appendChild(details);
+            monthlyContainer.appendChild(monthDiv);
         });
 
-        statusMsg.innerText = "Statement processed successfully.";
-        statusMsg.className = "status success";
+        statusMessage.textContent = "Statement processed successfully.";
+        statusMessage.className = "status success";
 
-    } catch {
-        statusMsg.innerText = "Server error.";
-        statusMsg.className = "status error";
+    } catch (err) {
+        statusMessage.textContent = "Server error. Please try again.";
+        statusMessage.className = "status error";
     } finally {
-        btn.disabled = false;
-        btn.innerText = "Upload & Process";
+        button.disabled = false;
+        button.textContent = "Upload Statement";
     }
 });
-
-/* ---------- RESET ---------- */
-document.getElementById("resetBtn").onclick = () => {
-    document.getElementById("totalExpense").innerText = "₹ —";
-    document.getElementById("totalDebit").innerText = "₹ —";
-    document.getElementById("totalCredit").innerText = "₹ —";
-    document.getElementById("topCategory").innerText = "—";
-    monthlyBox.innerHTML = "<p class='muted'>No data yet</p>";
-    statusMsg.innerText = "CSV cleared.";
-};

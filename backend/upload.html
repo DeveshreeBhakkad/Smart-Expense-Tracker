@@ -17,41 +17,43 @@
     <div class="upload-box">
         <form id="uploadForm">
             <input type="file" name="file" required />
-            <button id="uploadBtn">Upload Statement</button>
+            <button id="uploadBtn" type="submit">
+                Upload Statement
+            </button>
         </form>
+
         <p class="helper-text">
             Your data stays local. Nothing is stored.
         </p>
+
         <p id="statusMessage" class="status"></p>
     </div>
 </section>
 
-<!-- ================= INSIGHTS (HIDDEN INITIALLY) ================= -->
+<!-- ================= INSIGHTS ================= -->
 <section id="insights" class="insights hidden">
 
-    <!-- Primary Insight -->
     <div class="primary-insight">
         <h2>You spent</h2>
         <div class="amount" id="totalExpense">₹ —</div>
         <p class="muted">this month</p>
     </div>
 
-    <!-- Supporting Context -->
     <div class="context">
         <p><strong>Money In:</strong> <span id="totalCredit">₹ —</span></p>
         <p><strong>Money Out:</strong> <span id="totalDebit">₹ —</span></p>
         <p><strong>Most spent on:</strong> <span id="topCategory">—</span></p>
     </div>
 
-    <!-- Monthly Story -->
     <div class="monthly">
         <h3>Your monthly spending story</h3>
-        <div id="monthlyContainer">
-            <!-- months will appear here -->
-        </div>
+        <div id="monthlyContainer"></div>
     </div>
 
 </section>
+
+<!-- 🔴 THIS LINE WAS MISSING — ABSOLUTELY REQUIRED -->
+<script src="/static/script.js"></script>
 
 </body>
 </html>
