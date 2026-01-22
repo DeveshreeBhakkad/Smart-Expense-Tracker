@@ -1,6 +1,5 @@
 from flask import Flask, request, send_file
 import csv, os
-from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
 
@@ -17,21 +16,27 @@ LAST_REPORT_PATH = None
 
 
 # ===============================
-# ROOT ROUTE (IMPORTANT)
+# ROOT CHECK
 # ===============================
 @app.route("/")
 def home():
     return {
-        "message": "Smart Expense Tracker backend is running.",
-        "how_to_use": {
-            "upload_csv": "POST /upload with form-data key 'file'",
-            "download_report": "GET /download-report"
-        }
+        "message": "Smart Expense Tracker backend is running",
+        "ui": "/ui",
+        "upload": "POST /upload"
     }
 
 
 # ===============================
-# STEP 1 — UNIVERSAL CSV NORMALIZATION
+# SIMPLE UI (NO TEMPLATES)
+# ===============================
+@app.route("/ui")
+def ui():
+    return open(os.path.join(BASE_DIR, "upload.html")).read()
+
+
+# ===============================
+# STEP 1 — CSV NORMALIZATION
 # ===============================
 def normalize_csv(file_path):
     normalized = []
@@ -47,27 +52,23 @@ def normalize_csv(file_path):
                 def clean(v):
                     return float(v.replace(",", "").strip())
 
+                # Debit / Withdrawal
                 for k in ["Debit", "Withdrawal"]:
                     if k in row and row[k].strip():
                         amount = clean(row[k])
                         txn_type = "debit"
 
+                # Credit / Deposit
                 for k in ["Credit", "Deposit"]:
                     if k in row and row[k].strip():
                         amount = clean(row[k])
                         txn_type = "credit"
 
+                # Amount + sign / type
                 if amount is None and "Amount" in row and row["Amount"].strip():
                     raw = clean(row["Amount"])
-                    if "Type" in row:
-                        t = row["Type"].upper()
-                        if "DR" in t:
-                            amount, txn_type = abs(raw), "debit"
-                        elif "CR" in t:
-                            amount, txn_type = abs(raw), "credit"
-                    else:
-                        amount = abs(raw)
-                        txn_type = "debit" if raw < 0 else "credit"
+                    amount = abs(raw)
+                    txn_type = "debit" if raw < 0 else "credit"
 
                 if amount is None:
                     continue
@@ -90,7 +91,7 @@ def normalize_csv(file_path):
 # ===============================
 def category_insights(transactions):
     categories = {}
-    total_expense = 0
+    total = 0
 
     for tx in transactions:
         if tx["type"] != "debit":
@@ -109,12 +110,12 @@ def category_insights(transactions):
             cat = "Others"
 
         categories[cat] = categories.get(cat, 0) + amt
-        total_expense += amt
+        total += amt
 
     percentages = {
-        k: round((v / total_expense) * 100, 2)
-        for k, v in categories.items()
-    } if total_expense else {}
+        c: round((a / total) * 100, 2)
+        for c, a in categories.items()
+    } if total else {}
 
     return categories, percentages
 
@@ -129,11 +130,11 @@ def merchant_insights(transactions):
         if tx["type"] != "debit":
             continue
 
-        merchant = tx["description"].split()[0]
-        merchants.setdefault(merchant, {"count": 0, "total": 0})
+        name = tx["description"].split()[0]
+        merchants.setdefault(name, {"count": 0, "total": 0})
 
-        merchants[merchant]["count"] += 1
-        merchants[merchant]["total"] += tx["amount"]
+        merchants[name]["count"] += 1
+        merchants[name]["total"] += tx["amount"]
 
     return merchants
 
@@ -166,8 +167,8 @@ def generate_pdf(categories, percentages, merchants):
     c.drawString(40, y, "Top Merchants:")
     y -= 20
 
-    for m, data in merchants.items():
-        c.drawString(50, y, f"{m}: {data['count']} txns, ₹{data['total']}")
+    for m, d in merchants.items():
+        c.drawString(50, y, f"{m}: {d['count']} txns, ₹{d['total']}")
         y -= 15
 
     c.save()

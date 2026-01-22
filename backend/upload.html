@@ -1,58 +1,41 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-    <meta charset="UTF-8" />
     <title>Smart Expense Tracker</title>
-    <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 
-<!-- ================= HERO ================= -->
-<section class="hero">
-    <h1>Smart Expense Tracker</h1>
-    <p class="subtitle">
-        Turn your bank statement into clarity ✨
-    </p>
+<h2>Upload Bank Statement (CSV)</h2>
 
-    <div class="upload-box">
-        <form id="uploadForm">
-            <input type="file" name="file" required />
-            <button id="uploadBtn" type="submit">
-                Upload Statement
-            </button>
-        </form>
+<form id="uploadForm">
+    <input type="file" name="file" required />
+    <br><br>
+    <button type="submit">Upload</button>
+</form>
 
-        <p class="helper-text">
-            Your data stays local. Nothing is stored.
-        </p>
+<h3>Result</h3>
+<pre id="result"></pre>
 
-        <p id="statusMessage" class="status"></p>
-    </div>
-</section>
+<script>
+const form = document.getElementById("uploadForm");
+const result = document.getElementById("result");
 
-<!-- ================= INSIGHTS ================= -->
-<section id="insights" class="insights hidden">
+form.addEventListener("submit", async (e) => {
+    e.preventDefault();
 
-    <div class="primary-insight">
-        <h2>You spent</h2>
-        <div class="amount" id="totalExpense">₹ —</div>
-        <p class="muted">this month</p>
-    </div>
+    const fileInput = form.querySelector("input[type=file]");
+    const fd = new FormData();
+    fd.append("file", fileInput.files[0]);
 
-    <div class="context">
-        <p><strong>Money In:</strong> <span id="totalCredit">₹ —</span></p>
-        <p><strong>Money Out:</strong> <span id="totalDebit">₹ —</span></p>
-        <p><strong>Most spent on:</strong> <span id="topCategory">—</span></p>
-    </div>
+    const res = await fetch("/upload", {
+        method: "POST",
+        body: fd
+    });
 
-    <div class="monthly">
-        <h3>Your monthly spending story</h3>
-        <div id="monthlyContainer"></div>
-    </div>
-
-</section>
-
-<script src="/static/script.js"></script>
+    const data = await res.json();
+    result.textContent = JSON.stringify(data, null, 2);
+});
+</script>
 
 </body>
 </html>
