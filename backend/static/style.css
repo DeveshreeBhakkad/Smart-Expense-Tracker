@@ -168,3 +168,23 @@ main {
 .hidden {
     display: none;
 }
+
+
+body {
+    background: #020617;
+    color: #e5e7eb;
+    font-family: Arial, sans-serif;
+    padding: 40px;
+}
+
+button {
+    padding: 10px 15px;
+    background: #22c55e;
+    border: none;
+    cursor: pointer;
+}
+
+.status.success { color: #22c55e; }
+.status.error { color: #ef4444; }
+
+.hidden { display: none; }

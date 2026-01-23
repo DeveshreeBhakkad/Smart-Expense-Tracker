@@ -1,77 +1,38 @@
-<<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
+    <meta charset="UTF-8">
     <title>Smart Expense Tracker</title>
-    <link rel="stylesheet" href="/static/style.css" />
+    <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<div class="app-container">
+<h1>Smart Expense Tracker</h1>
+<p>Turn your bank statement into clarity ✨</p>
 
-    <!-- ================= HEADER ================= -->
-    <header class="header">
-        <div class="header-left">
-            <h1>Smart Expense Tracker</h1>
-            <p class="subtitle">Turn your bank statement into clarity ✨</p>
-        </div>
+<form id="uploadForm">
+    <input id="fileInput" type="file" required>
+    <div id="passwordBox" style="display:none;">
+        <input id="pdfPassword" type="password" placeholder="Enter PDF password">
+    </div>
+    <button id="uploadBtn">Upload & Analyze</button>
+</form>
 
-        <div class="upload-box">
-            <form id="uploadForm">
-                <input type="file" name="file" required />
-                <button id="uploadBtn" type="submit">Upload & Analyze</button>
-                <div id="passwordBox" class="hidden">
-                <input type="password" id="pdfPassword" placeholder="Enter PDF password" />
-                <button id="unlockBtn">Unlock & Analyze</button>
-                </div>
+<p id="statusMessage" class="status"></p>
 
-            </form>
-            <p id="statusMessage" class="status"></p>
-        </div>
-    </header>
+<section id="insights" class="hidden">
+    <h2>Total Expense</h2>
+    <div id="totalExpense">₹ —</div>
 
-    <!-- ================= CONTENT ================= -->
-    <main>
+    <p>Debit: <span id="totalDebit"></span></p>
+    <p>Credit: <span id="totalCredit"></span></p>
+    <p>Top Category: <span id="topCategory"></span></p>
 
-        <section id="insights" class="insights hidden">
+    <h3>Monthly Expenses</h3>
+    <div id="monthlyContainer"></div>
 
-            <!-- ===== INSIGHT CARDS ===== -->
-            <div class="cards">
-                <div class="card primary">
-                    <span>Total Expense</span>
-                    <strong id="totalExpense">₹ —</strong>
-                </div>
-                <div class="card">
-                    <span>Total Debit</span>
-                    <strong id="totalDebit">₹ —</strong>
-                </div>
-                <div class="card">
-                    <span>Total Credit</span>
-                    <strong id="totalCredit">₹ —</strong>
-                </div>
-                <div class="card">
-                    <span>Top Category</span>
-                    <strong id="topCategory">—</strong>
-                </div>
-            </div>
-
-            <!-- ===== MONTHLY ===== -->
-            <section class="monthly">
-                <div class="monthly-header">
-                    <h2>Monthly Expenses</h2>
-                    <a href="/download-report" class="download-btn">Download PDF</a>
-                </div>
-
-                <div id="monthlyContainer" class="monthly-container">
-                    <!-- JS injects months here -->
-                </div>
-            </section>
-
-        </section>
-
-    </main>
-
-</div>
+    <a href="/download-report">Download PDF</a>
+</section>
 
 <script src="/static/script.js"></script>
 </body>

@@ -1,15 +1,19 @@
 from flask import Flask, request, send_file, redirect
-import os, csv, uuid
+import os, csv, io
 from datetime import datetime
+from PyPDF2 import PdfReader
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from PyPDF2 import PdfReader
 
 app = Flask(__name__)
 LAST_PDF_PATH = None
 
-# Temporary store for encrypted PDFs
-ENCRYPTED_PDFS = {}
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
+REPORT_DIR = os.path.join(BASE_DIR, "reports")
+
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(REPORT_DIR, exist_ok=True)
 
 
 @app.route("/")
@@ -19,62 +23,30 @@ def home():
 
 @app.route("/upload-form")
 def upload_form():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    return open(os.path.join(base_dir, "upload.html"), encoding="utf-8").read()
+    return open(os.path.join(BASE_DIR, "upload.html"), encoding="utf-8").read()
 
 
-# ---------- CSV / ROW PARSER ----------
+# ------------------ CSV ROW PARSER ------------------
 def parse_transaction_row(row):
     def clean(v): return v.replace(",", "").strip()
 
     for k in ["Debit", "Withdrawal"]:
         if k in row and row[k].strip():
-            try: return float(clean(row[k])), "debit"
-            except: return None
+            return float(clean(row[k])), "debit"
 
     for k in ["Credit", "Deposit"]:
         if k in row and row[k].strip():
-            try: return float(clean(row[k])), "credit"
-            except: return None
+            return float(clean(row[k])), "credit"
 
     if "Amount" in row and row["Amount"].strip():
-        try:
-            amt = float(clean(row["Amount"]))
-        except:
-            return None
-
-        for t in ["Type", "Dr/Cr", "DRCR"]:
-            if t in row:
-                v = row[t].upper()
-                if "DR" in v: return abs(amt), "debit"
-                if "CR" in v: return abs(amt), "credit"
-
+        amt = float(clean(row["Amount"]))
         return (abs(amt), "debit") if amt < 0 else (amt, "credit")
 
     return None
 
 
-# ---------- PDF TEXT PARSER ----------
-def parse_pdf_text(text):
-    rows = []
-    for line in text.splitlines():
-        parts = line.split()
-        if len(parts) < 4:
-            continue
-
-        try:
-            rows.append({
-                "Date": parts[0],
-                "Description": " ".join(parts[1:-1]),
-                "Amount": parts[-1]
-            })
-        except:
-            pass
-    return rows
-
-
-# ---------- CORE INSIGHTS ENGINE ----------
-def generate_insights(rows):
+# ------------------ CORE PROCESSOR ------------------
+def process_transactions(rows):
     total_debit = total_credit = 0
     category_summary = {}
     monthly_expense = {}
@@ -91,26 +63,30 @@ def generate_insights(rows):
 
         if txn_type == "credit":
             total_credit += amount
+            continue
+
+        # Debit categorization
+        if "swiggy" in desc or "zomato" in desc:
+            category = "Food"
+        elif "amazon" in desc or "flipkart" in desc:
+            category = "Shopping"
+        elif "uber" in desc or "ola" in desc:
+            category = "Travel"
+        elif "recharge" in desc:
+            category = "Utilities"
         else:
-            if "swiggy" in desc or "zomato" in desc:
-                category = "Food"
-            elif "amazon" in desc or "flipkart" in desc:
-                category = "Shopping"
-            elif "uber" in desc or "ola" in desc:
-                category = "Travel"
-            else:
-                category = "Others"
+            category = "Others"
 
-            total_debit += amount
-            category_summary[category] = category_summary.get(category, 0) + amount
+        total_debit += amount
+        category_summary[category] = category_summary.get(category, 0) + amount
 
-            try:
-                month = datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m")
-                monthly_expense[month] = monthly_expense.get(month, 0) + amount
-                monthly_category.setdefault(month, {})
-                monthly_category[month][category] = monthly_category[month].get(category, 0) + amount
-            except:
-                pass
+        try:
+            month = datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m")
+            monthly_expense[month] = monthly_expense.get(month, 0) + amount
+            monthly_category.setdefault(month, {})
+            monthly_category[month][category] = monthly_category[month].get(category, 0) + amount
+        except:
+            pass
 
     return {
         "total_expense": total_debit,
@@ -122,67 +98,77 @@ def generate_insights(rows):
     }
 
 
-# ---------- UPLOAD ----------
+# ------------------ UPLOAD ------------------
 @app.route("/upload", methods=["POST"])
 def upload():
+    global LAST_PDF_PATH
+
     file = request.files.get("file")
-    if not file or file.filename == "":
+    password = request.form.get("password")
+
+    if not file:
         return {"error": "No file uploaded"}, 400
 
-    base = os.path.dirname(os.path.abspath(__file__))
-    upload_dir = os.path.join(base, "uploads")
-    os.makedirs(upload_dir, exist_ok=True)
-
-    path = os.path.join(upload_dir, file.filename)
+    filename = file.filename.lower()
+    path = os.path.join(UPLOAD_DIR, file.filename)
     file.save(path)
 
-    # CSV
-    if file.filename.lower().endswith(".csv"):
+    # ---------- CSV ----------
+    if filename.endswith(".csv"):
         with open(path, newline="", encoding="utf-8") as f:
             rows = list(csv.DictReader(f))
-        return generate_insights(rows)
+        data = process_transactions(rows)
 
-    # PDF
-    if file.filename.lower().endswith(".pdf"):
+    # ---------- PDF ----------
+    elif filename.endswith(".pdf"):
         reader = PdfReader(path)
 
         if reader.is_encrypted:
-            token = str(uuid.uuid4())
-            ENCRYPTED_PDFS[token] = path
-            return {"password_required": True, "file_token": token}
+            if not password:
+                return {"needs_password": True}, 401
+            try:
+                reader.decrypt(password)
+            except:
+                return {"error": "Invalid PDF password"}, 403
 
-        text = "".join(page.extract_text() or "" for page in reader.pages)
-        rows = parse_pdf_text(text)
-        return generate_insights(rows)
+        text = ""
+        for page in reader.pages:
+            text += page.extract_text() + "\n"
 
-    return {"error": "Unsupported file"}, 400
+        # VERY BASIC PDF → CSV MOCK (real banks differ)
+        rows = []
+        for line in text.splitlines():
+            parts = line.split(",")
+            if len(parts) >= 3:
+                rows.append({
+                    "Date": parts[0],
+                    "Description": parts[1],
+                    "Amount": parts[2]
+                })
 
+        data = process_transactions(rows)
 
-# ---------- UNLOCK PDF ----------
-@app.route("/unlock-pdf", methods=["POST"])
-def unlock_pdf():
-    token = request.json.get("file_token")
-    password = request.json.get("password")
+    else:
+        return {"error": "Unsupported file type"}, 400
 
-    if token not in ENCRYPTED_PDFS:
-        return {"error": "Invalid session"}, 400
+    # ---------- PDF REPORT ----------
+    pdf_path = os.path.join(REPORT_DIR, "expense_report.pdf")
+    LAST_PDF_PATH = pdf_path
 
-    path = ENCRYPTED_PDFS[token]
-    reader = PdfReader(path)
+    c = canvas.Canvas(pdf_path, pagesize=A4)
+    c.drawString(40, 800, "Expense Report Summary")
+    c.drawString(40, 770, f"Total Expense: ₹ {data['total_expense']}")
+    c.drawString(40, 750, f"Top Category: {data['top_category']}")
+    c.save()
 
-    if not reader.decrypt(password):
-        return {"error": "Incorrect password"}, 401
-
-    text = "".join(page.extract_text() or "" for page in reader.pages)
-    rows = parse_pdf_text(text)
-
-    del ENCRYPTED_PDFS[token]
-    return generate_insights(rows)
+    return data
 
 
 @app.route("/download-report")
 def download_report():
-    return {"info": "PDF generation unchanged (already working)"}
+    if LAST_PDF_PATH and os.path.exists(LAST_PDF_PATH):
+        return send_file(LAST_PDF_PATH, as_attachment=True)
+    return {"error": "No report available"}, 404
 
 
 if __name__ == "__main__":
