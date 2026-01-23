@@ -29,6 +29,13 @@ form.addEventListener("submit", async (e) => {
         });
 
         const data = await response.json();
+
+         if (data.password_required) {
+              statusMessage.textContent = "This PDF is password protected. Support coming next.";
+              statusMessage.className = "status error";
+              return;
+        }
+
         if (data.error) throw new Error();
 
         insightsSection.classList.remove("hidden");

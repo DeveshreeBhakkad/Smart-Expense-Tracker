@@ -3,6 +3,7 @@ import os, csv
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from PyPDF2 import PdfReader
 
 app = Flask(__name__)
 LAST_PDF_PATH = None
@@ -19,33 +20,68 @@ def upload_form():
     return open(os.path.join(base_dir, "upload.html"), encoding="utf-8").read()
 
 
-# ---------- UNIVERSAL CSV ROW PARSER ----------
+# ---------- UNIVERSAL ROW PARSER ----------
 def parse_transaction_row(row):
     def clean(v): return v.replace(",", "").strip()
 
     for k in ["Debit", "Withdrawal"]:
         if k in row and row[k].strip():
-            try: return float(clean(row[k])), "debit"
-            except: return None
+            try:
+                return float(clean(row[k])), "debit"
+            except:
+                return None
 
     for k in ["Credit", "Deposit"]:
         if k in row and row[k].strip():
-            try: return float(clean(row[k])), "credit"
-            except: return None
+            try:
+                return float(clean(row[k])), "credit"
+            except:
+                return None
 
     if "Amount" in row and row["Amount"].strip():
-        try: amt = float(clean(row["Amount"]))
-        except: return None
+        try:
+            amt = float(clean(row["Amount"]))
+        except:
+            return None
 
         for t in ["Type", "Dr/Cr", "DRCR"]:
             if t in row:
                 v = row[t].upper()
-                if "DR" in v: return abs(amt), "debit"
-                if "CR" in v: return abs(amt), "credit"
+                if "DR" in v:
+                    return abs(amt), "debit"
+                if "CR" in v:
+                    return abs(amt), "credit"
 
         return (abs(amt), "debit") if amt < 0 else (amt, "credit")
 
     return None
+
+
+# ---------- PDF TEXT → ROWS ----------
+def parse_pdf_text(text):
+    rows = []
+    lines = text.splitlines()
+
+    for line in lines:
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+
+        # VERY BASIC heuristic (v1)
+        try:
+            date = parts[0]
+            amount = parts[-1]
+            desc = " ".join(parts[1:-1])
+
+            rows.append({
+                "Date": date,
+                "Description": desc,
+                "Amount": amount
+            })
+        except:
+            continue
+
+    return rows
 
 
 # ---------- UPLOAD ----------
@@ -66,12 +102,37 @@ def upload():
     path = os.path.join(upload_dir, file.filename)
     file.save(path)
 
-    try:
-        with open(path, newline="", encoding="utf-8") as f:
-            rows = list(csv.DictReader(f))
-    except:
-        return {"error": "Invalid CSV"}, 400
+    rows = []
 
+    # ---------- CSV ----------
+    if file.filename.lower().endswith(".csv"):
+        try:
+            with open(path, newline="", encoding="utf-8") as f:
+                rows = list(csv.DictReader(f))
+        except:
+            return {"error": "Invalid CSV file"}, 400
+
+    # ---------- PDF (NO PASSWORD YET) ----------
+    elif file.filename.lower().endswith(".pdf"):
+        try:
+            reader = PdfReader(path)
+
+            if reader.is_encrypted:
+                return {"password_required": True}, 200
+
+            text = ""
+            for page in reader.pages:
+                text += page.extract_text() + "\n"
+
+            rows = parse_pdf_text(text)
+
+        except Exception as e:
+            return {"error": "Unable to read PDF"}, 400
+
+    else:
+        return {"error": "Unsupported file type"}, 400
+
+    # ---------- INSIGHTS ----------
     total_debit = total_credit = 0
     category_summary = {}
     monthly_expense = {}
@@ -112,7 +173,7 @@ def upload():
             except:
                 pass
 
-    # PDF (kept simple)
+    # ---------- PDF REPORT ----------
     report_dir = os.path.join(base, "reports")
     os.makedirs(report_dir, exist_ok=True)
     pdf_path = os.path.join(report_dir, "expense_report.pdf")
