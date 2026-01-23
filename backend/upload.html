@@ -20,6 +20,11 @@
             <form id="uploadForm">
                 <input type="file" name="file" required />
                 <button id="uploadBtn" type="submit">Upload & Analyze</button>
+                <div id="passwordBox" class="hidden">
+                <input type="password" id="pdfPassword" placeholder="Enter PDF password" />
+                <button id="unlockBtn">Unlock & Analyze</button>
+                </div>
+
             </form>
             <p id="statusMessage" class="status"></p>
         </div>

@@ -85,3 +85,26 @@ form.addEventListener("submit", async (e) => {
         button.textContent = "Upload & Analyze";
     }
 });
+let pdfToken = null;
+
+document.getElementById("unlockBtn").onclick = async () => {
+    const password = document.getElementById("pdfPassword").value;
+
+    const res = await fetch("/unlock-pdf", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+            file_token: pdfToken,
+            password
+        })
+    });
+
+    const data = await res.json();
+    if (data.error) {
+        alert(data.error);
+        return;
+    }
+
+    document.getElementById("passwordBox").classList.add("hidden");
+    renderInsights(data); // reuse your existing render logic
+};
