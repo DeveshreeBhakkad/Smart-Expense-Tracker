@@ -4,7 +4,7 @@ const insightsSection = document.getElementById("insights");
 const monthlyContainer = document.getElementById("monthlyContainer");
 
 form.addEventListener("submit", async (e) => {
-    e.preventDefault(); // STOP page reload
+    e.preventDefault();
 
     const fileInput = form.querySelector("input[type='file']");
     const button = document.getElementById("uploadBtn");
@@ -29,25 +29,15 @@ form.addEventListener("submit", async (e) => {
         });
 
         const data = await response.json();
+        if (data.error) throw new Error();
 
-        if (data.error) {
-            statusMessage.textContent = data.error;
-            statusMessage.className = "status error";
-            return;
-        }
-
-        // ✅ Reveal insights
         insightsSection.classList.remove("hidden");
 
-        // ✅ Fill primary insight
         document.getElementById("totalExpense").textContent = `₹ ${data.total_expense}`;
-
-        // ✅ Supporting context
         document.getElementById("totalDebit").textContent = `₹ ${data.total_debit}`;
         document.getElementById("totalCredit").textContent = `₹ ${data.total_credit}`;
         document.getElementById("topCategory").textContent = data.top_category;
 
-        // ✅ Monthly story
         monthlyContainer.innerHTML = "";
 
         Object.keys(data.monthly_expense).forEach(month => {
@@ -60,7 +50,6 @@ form.addEventListener("submit", async (e) => {
 
             const details = document.createElement("div");
             details.className = "month-details";
-            details.style.display = "none";
 
             Object.entries(data.monthly_category[month]).forEach(([cat, amt]) => {
                 const p = document.createElement("p");
@@ -69,7 +58,8 @@ form.addEventListener("submit", async (e) => {
             });
 
             title.onclick = () => {
-                details.style.display = details.style.display === "none" ? "block" : "none";
+                document.querySelectorAll(".month-details").forEach(d => d.style.display = "none");
+                details.style.display = "block";
             };
 
             monthDiv.appendChild(title);
@@ -80,11 +70,11 @@ form.addEventListener("submit", async (e) => {
         statusMessage.textContent = "Statement processed successfully.";
         statusMessage.className = "status success";
 
-    } catch (err) {
-        statusMessage.textContent = "Server error. Please try again.";
+    } catch {
+        statusMessage.textContent = "Server error.";
         statusMessage.className = "status error";
     } finally {
         button.disabled = false;
-        button.textContent = "Upload Statement";
+        button.textContent = "Upload & Analyze";
     }
 });
