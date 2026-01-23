@@ -12,25 +12,42 @@ body {
     overflow: hidden;
 }
 
+/* ===== CONTAINER ===== */
+.app-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    height: 100vh;
+    display: flex;
+    flex-direction: column;
+}
+
 /* ===== HEADER ===== */
 .header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 30px 50px;
+    padding: 28px 20px;
+    border-bottom: 1px solid #1f2933;
 }
 
 .subtitle {
-    color: #9ca3af;
     font-size: 14px;
+    color: #9ca3af;
+    margin-top: 4px;
+}
+
+.upload-box {
+    background: rgba(2, 6, 23, 0.8);
+    padding: 14px;
+    border-radius: 12px;
 }
 
 .upload-box input {
-    margin-right: 10px;
+    margin-right: 8px;
 }
 
 .upload-box button {
-    padding: 10px 16px;
+    padding: 8px 14px;
     background: #22c55e;
     border: none;
     border-radius: 8px;
@@ -43,7 +60,7 @@ body {
 }
 
 .status {
-    font-size: 13px;
+    font-size: 12px;
     margin-top: 6px;
 }
 
@@ -51,23 +68,26 @@ body {
 .status.error { color: #ef4444; }
 
 /* ===== MAIN ===== */
-.main {
-    padding: 0 50px 30px;
+main {
+    flex: 1;
+    padding: 25px 20px;
+    overflow: hidden;
 }
 
 /* ===== CARDS ===== */
 .cards {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
-    gap: 20px;
+    gap: 18px;
     margin-bottom: 25px;
 }
 
 .card {
-    background: #020617;
-    padding: 20px;
+    background: rgba(2, 6, 23, 0.9);
+    padding: 18px;
     border-radius: 14px;
     text-align: center;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
 }
 
 .card span {
@@ -82,15 +102,15 @@ body {
 }
 
 .card.primary strong {
-    font-size: 28px;
+    font-size: 30px;
 }
 
 /* ===== MONTHLY ===== */
 .monthly {
-    background: #020617;
-    border-radius: 16px;
+    background: rgba(2, 6, 23, 0.9);
+    border-radius: 18px;
     padding: 20px;
-    height: 320px;
+    height: 420px;
     display: flex;
     flex-direction: column;
 }
@@ -99,32 +119,41 @@ body {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
 }
 
 .download-btn {
+    font-size: 14px;
     color: #22c55e;
     text-decoration: none;
-    font-size: 14px;
 }
 
 .monthly-container {
     overflow-y: auto;
-    padding-right: 5px;
+    padding-right: 6px;
 }
 
+/* ===== MONTH CARDS ===== */
 .month {
-    border-bottom: 1px solid #1f2933;
-    padding: 12px 0;
+    padding: 14px;
+    border-radius: 12px;
+    background: rgba(15, 23, 42, 0.6);
+    margin-bottom: 10px;
     cursor: pointer;
+}
+
+.month:hover {
+    background: rgba(15, 23, 42, 0.9);
 }
 
 .month-title {
     font-weight: 600;
+    display: flex;
+    justify-content: space-between;
 }
 
 .month-details {
-    margin-top: 8px;
+    margin-top: 10px;
     padding-left: 12px;
     display: none;
 }
@@ -132,6 +161,7 @@ body {
 .month-details p {
     font-size: 13px;
     color: #9ca3af;
+    margin-bottom: 4px;
 }
 
 /* ===== HELPERS ===== */

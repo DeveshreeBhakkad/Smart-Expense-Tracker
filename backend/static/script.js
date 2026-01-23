@@ -46,7 +46,7 @@ form.addEventListener("submit", async (e) => {
 
             const title = document.createElement("div");
             title.className = "month-title";
-            title.textContent = `${month} — ₹ ${data.monthly_expense[month]}`;
+            title.innerHTML = `<span>▼ ${month}</span><span>₹ ${data.monthly_expense[month]}</span>`;
 
             const details = document.createElement("div");
             details.className = "month-details";
@@ -71,7 +71,7 @@ form.addEventListener("submit", async (e) => {
         statusMessage.className = "status success";
 
     } catch {
-        statusMessage.textContent = "Server error.";
+        statusMessage.textContent = "Server error. Please try again.";
         statusMessage.className = "status error";
     } finally {
         button.disabled = false;
