@@ -1,6 +1,6 @@
 # Smart Expense Tracker 💸
 
-Smart Expense Tracker is a Flask-based web application that analyzes bank statements
+Smart Expense Tracker is a Flask-based web application that analyzes bank statements<br>
 (CSV currently, PDF support in progress) and presents clean, human-friendly insights
 about spending behavior.
 
@@ -95,3 +95,52 @@ All frontend files (`upload.html`, `static/`) live **inside the backend folder**
 ```bash
 python backend/app.py
 ```
+
+### Then open directly:
+```bash
+http://127.0.0.1:5000/
+```
+
+✅ No need to type /upload-form
+
+---
+
+## ⚠️ Known Issues (Expected)
+
+  - Some CSV files fail due to encoding (utf-8 vs latin-1)
+  - PDF parsing may hang or fail for some bank formats
+  - Password-protected PDFs not fully supported yet
+
+These are planned fixes, not bugs.
+
+---
+
+## 🧭 Development Philosophy
+
+- Backend stability first
+- UI frozen unless explicitly approved
+- Features added step-by-step
+- No rushed changes
+- Real bank statements as test cases
+
+---
+
+## 🛠 Tech Stack
+
+- Python
+- Flask
+- HTML / CSS / Vanilla JS
+- ReportLab (PDF)
+- CSV module
+
+---
+
+## 👩‍💻 Author
+
+Built by Deveshree<br>
+Final year AIML student<br>
+Portfolio-grade system, not a toy project.
+
+
+---
+
