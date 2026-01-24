@@ -1,37 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+    <meta charset="UTF-8" />
     <title>Smart Expense Tracker</title>
-    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/style.css" />
 </head>
 <body>
 
-<h1>Smart Expense Tracker</h1>
-<p>Turn your bank statement into clarity ✨</p>
+<section class="hero">
+    <h1>Smart Expense Tracker</h1>
+    <p class="subtitle">Turn your bank statement into clarity ✨</p>
 
-<form id="uploadForm">
-    <input id="fileInput" type="file" required>
-    <div id="passwordBox" style="display:none;">
-        <input id="pdfPassword" type="password" placeholder="Enter PDF password">
+    <div class="upload-box">
+        <form id="uploadForm">
+            <input type="file" name="file" required />
+            <input type="password" id="pdfPassword" placeholder="PDF Password (if any)" style="display:none;" />
+            <button id="uploadBtn" type="submit">Upload & Analyze</button>
+        </form>
+
+        <p id="statusMessage" class="status"></p>
     </div>
-    <button id="uploadBtn">Upload & Analyze</button>
-</form>
+</section>
 
-<p id="statusMessage" class="status"></p>
+<section id="insights" class="insights hidden">
+    <div class="primary-insight">
+        <h2>Total Expense</h2>
+        <div class="amount" id="totalExpense">₹ —</div>
+    </div>
 
-<section id="insights" class="hidden">
-    <h2>Total Expense</h2>
-    <div id="totalExpense">₹ —</div>
+    <div class="context">
+        <p>Total Debit: <span id="totalDebit">₹ —</span></p>
+        <p>Total Credit: <span id="totalCredit">₹ —</span></p>
+        <p>Top Category: <span id="topCategory">—</span></p>
+    </div>
 
-    <p>Debit: <span id="totalDebit"></span></p>
-    <p>Credit: <span id="totalCredit"></span></p>
-    <p>Top Category: <span id="topCategory"></span></p>
-
-    <h3>Monthly Expenses</h3>
-    <div id="monthlyContainer"></div>
-
-    <a href="/download-report">Download PDF</a>
+    <div class="monthly">
+        <h3>Monthly Expenses</h3>
+        <div id="monthlyContainer"></div>
+        <a href="/download-report" class="download">Download PDF</a>
+    </div>
 </section>
 
 <script src="/static/script.js"></script>
