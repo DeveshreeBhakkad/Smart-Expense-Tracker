@@ -1,59 +1,37 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <title>Smart Expense Tracker</title>
-    <link rel="stylesheet" href="/static/style.css" />
+  <meta charset="UTF-8">
+  <title>Smart Expense Tracker</title>
+  <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
 
-<!-- ================= HERO ================= -->
 <section class="hero">
-    <h1>Smart Expense Tracker</h1>
-    <p class="subtitle">
-        Turn your bank statement into clarity ✨
-    </p>
+  <h1>Smart Expense Tracker</h1>
+  <p class="subtitle">Turn your bank statement into clarity ✨</p>
 
-    <div class="upload-box">
-        <form id="uploadForm">
-            <input type="file" name="file" required />
-            <button id="uploadBtn" type="submit">
-                Upload Statement
-            </button>
-        </form>
+  <div class="upload-box">
+    <form id="uploadForm">
+      <input type="file" id="fileInput" required>
 
-        <p class="helper-text">
-            Your data stays local. Nothing is stored.
-        </p>
+      <!-- Password field (hidden by default) -->
+      <input type="password" id="pdfPassword"
+             placeholder="Enter PDF password"
+             class="hidden">
 
-        <p id="statusMessage" class="status"></p>
-    </div>
+      <button type="submit" id="uploadBtn">Upload & Analyze</button>
+    </form>
+
+    <p id="statusMessage" class="status"></p>
+  </div>
 </section>
 
-<!-- ================= INSIGHTS ================= -->
 <section id="insights" class="insights hidden">
-
-    <div class="primary-insight">
-        <h2>You spent</h2>
-        <div class="amount" id="totalExpense">₹ —</div>
-        <p class="muted">this month</p>
-    </div>
-
-    <div class="context">
-        <p><strong>Money In:</strong> <span id="totalCredit">₹ —</span></p>
-        <p><strong>Money Out:</strong> <span id="totalDebit">₹ —</span></p>
-        <p><strong>Most spent on:</strong> <span id="topCategory">—</span></p>
-    </div>
-
-    <div class="monthly">
-        <h3>Your monthly spending story</h3>
-        <div id="monthlyContainer"></div>
-    </div>
-
+  <h2>Total Expense</h2>
+  <div id="totalExpense"></div>
 </section>
 
-<!-- 🔴 THIS LINE WAS MISSING — ABSOLUTELY REQUIRED -->
 <script src="/static/script.js"></script>
-
 </body>
 </html>
