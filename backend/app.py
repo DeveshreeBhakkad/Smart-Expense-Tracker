@@ -1,17 +1,21 @@
-from flask import Flask, request, send_file, redirect
-import os, csv, io
+from flask import Flask, request, send_file, redirect, jsonify
+import os, csv, re
 from datetime import datetime
-from reportlab.lib.pagesizes import A4
-from reportlab.pdfgen import canvas
 
 import pdfplumber
 from PyPDF2 import PdfReader
+from pdf2image import convert_from_path
+import pytesseract
+
+from reportlab.lib.pagesizes import A4
+from reportlab.pdfgen import canvas
 
 app = Flask(__name__)
 LAST_PDF_PATH = None
 
 
-# ---------------- HOME ----------------
+# ---------------- ROUTES ----------------
+
 @app.route("/")
 def home():
     return redirect("/upload-form")
@@ -23,87 +27,92 @@ def upload_form():
     return open(os.path.join(base_dir, "upload.html"), encoding="utf-8").read()
 
 
-# ---------- UNIVERSAL CSV ROW PARSER ----------
+# ---------------- CSV PARSER ----------------
+
 def parse_transaction_row(row):
     def clean(v): return v.replace(",", "").strip()
 
     for k in ["Debit", "Withdrawal"]:
         if k in row and row[k].strip():
-            try:
-                return float(clean(row[k])), "debit"
-            except:
-                return None
+            return float(clean(row[k])), "debit"
 
     for k in ["Credit", "Deposit"]:
         if k in row and row[k].strip():
-            try:
-                return float(clean(row[k])), "credit"
-            except:
-                return None
+            return float(clean(row[k])), "credit"
 
     if "Amount" in row and row["Amount"].strip():
-        try:
-            amt = float(clean(row["Amount"]))
-        except:
-            return None
-
-        for t in ["Type", "Dr/Cr", "DRCR"]:
-            if t in row:
-                v = row[t].upper()
-                if "DR" in v:
-                    return abs(amt), "debit"
-                if "CR" in v:
-                    return abs(amt), "credit"
-
-        return (abs(amt), "debit") if amt < 0 else (amt, "credit")
+        amt = float(clean(row["Amount"]))
+        t = row.get("Type", "").upper()
+        return (abs(amt), "debit") if "DR" in t or amt < 0 else (amt, "credit")
 
     return None
 
 
-# ---------- PDF TEXT EXTRACTION ----------
-def extract_text_from_pdf(path, password=None):
+# ---------------- PDF HELPERS ----------------
+
+def extract_text_pdf(path):
     try:
-        reader = PdfReader(path)
-        if reader.is_encrypted:
-            if not password:
-                return None, "PASSWORD_REQUIRED"
-            if not reader.decrypt(password):
-                return None, "WRONG_PASSWORD"
-
         text = ""
-        with pdfplumber.open(path, password=password) as pdf:
+        with pdfplumber.open(path) as pdf:
             for page in pdf.pages:
-                page_text = page.extract_text()
-                if page_text:
-                    text += page_text + "\n"
-
-        if not text.strip():
-            return None, "NO_TEXT"
-
-        return text, None
-
+                t = page.extract_text()
+                if t:
+                    text += t + "\n"
+        return text.strip()
     except Exception as e:
-        return None, str(e)
+        print("PDF TEXT ERROR:", e)
+        return ""
 
 
-# ---------- UPLOAD ----------
+def ocr_pdf(path, password=None):
+    try:
+        images = convert_from_path(
+            path,
+            dpi=300,
+            userpw=password
+        )
+        text = ""
+        for img in images:
+            text += pytesseract.image_to_string(img) + "\n"
+        return text.strip()
+    except Exception as e:
+        print("OCR ERROR:", e)
+        return ""
+
+
+def parse_transactions_from_text(text):
+    rows = []
+    lines = text.splitlines()
+
+    for line in lines:
+        m = re.search(r'(\d{2}[-/]\d{2}[-/]\d{4}).*?([\d,]+\.\d{2})', line)
+        if m:
+            rows.append({
+                "Date": m.group(1).replace("/", "-"),
+                "Amount": m.group(2).replace(",", ""),
+                "Description": line
+            })
+    return rows
+
+
+# ---------------- UPLOAD ----------------
+
 @app.route("/upload", methods=["POST"])
 def upload():
     global LAST_PDF_PATH
 
     if "file" not in request.files:
-        return {"error": "No file uploaded"}, 400
+        return jsonify({"error": "No file uploaded"}), 400
 
     file = request.files["file"]
     password = request.form.get("password")
 
     if file.filename == "":
-        return {"error": "No file selected"}, 400
+        return jsonify({"error": "No file selected"}), 400
 
     base = os.path.dirname(os.path.abspath(__file__))
     upload_dir = os.path.join(base, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
-
     path = os.path.join(upload_dir, file.filename)
     file.save(path)
 
@@ -115,37 +124,46 @@ def upload():
             with open(path, newline="", encoding="utf-8", errors="ignore") as f:
                 rows = list(csv.DictReader(f))
         except:
-            return {"error": "Invalid CSV file"}, 400
+            return jsonify({"error": "Invalid CSV"}), 400
 
     # ---------- PDF ----------
     elif file.filename.lower().endswith(".pdf"):
-        text, status = extract_text_from_pdf(path, password)
+        try:
+            reader = PdfReader(path)
+            if reader.is_encrypted and not password:
+                return jsonify({
+                    "error": "PDF_PASSWORD_REQUIRED",
+                    "message": "PDF is password protected. Please enter password."
+                }), 200
+        except Exception as e:
+            print("PDF OPEN ERROR:", e)
+            return jsonify({"error": "Invalid PDF"}), 400
 
-        if status == "PASSWORD_REQUIRED":
-            return {"error": "PDF is password protected. Please enter password."}, 400
+        text = extract_text_pdf(path)
 
-        if status == "WRONG_PASSWORD":
-            return {"error": "Incorrect PDF password."}, 400
+        if not text:
+            text = ocr_pdf(path, password=password)
 
-        if status == "NO_TEXT":
-            return {
-                "error": "PDF opened but no readable text found. OCR support coming next."
-            }, 400
+        if not text:
+            return jsonify({
+                "error": "NO_TEXT_FOUND",
+                "message": "PDF opened but no readable text could be extracted."
+            }), 200
 
-        if text is None:
-            return {"error": "Failed to read PDF."}, 400
+        rows = parse_transactions_from_text(text)
 
-        # ❗ Phase B2 limitation:
-        # PDF text is extracted but not tabular-normalized yet
-        return {
-            "message": "PDF opened successfully, but structured table parsing is coming next.",
-            "raw_preview": text[:1000]
-        }
+        if not rows:
+            return jsonify({
+                "error": "NO_TRANSACTIONS_FOUND",
+                "message": "PDF text extracted but no transaction data detected."
+            }), 200
 
     else:
-        return {"error": "Unsupported file type"}, 400
+        return jsonify({"error": "Unsupported file type"}), 400
 
-    # ---------- EXPENSE LOGIC (UNCHANGED) ----------
+
+    # ---------------- ANALYSIS ----------------
+
     total_debit = total_credit = 0
     category_summary = {}
     monthly_expense = {}
@@ -161,7 +179,6 @@ def upload():
         date_str = row.get("Date", "")
 
         if txn_type == "credit":
-            category = "Income"
             total_credit += amount
         else:
             if "swiggy" in desc or "zomato" in desc:
@@ -170,8 +187,6 @@ def upload():
                 category = "Shopping"
             elif "uber" in desc or "ola" in desc:
                 category = "Travel"
-            elif "recharge" in desc:
-                category = "Utilities"
             else:
                 category = "Others"
 
@@ -182,11 +197,15 @@ def upload():
                 month = datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m")
                 monthly_expense[month] = monthly_expense.get(month, 0) + amount
                 monthly_category.setdefault(month, {})
-                monthly_category[month][category] = monthly_category[month].get(category, 0) + amount
+                monthly_category[month][category] = (
+                    monthly_category[month].get(category, 0) + amount
+                )
             except:
                 pass
 
-    # ---------- PDF REPORT ----------
+
+    # ---------------- PDF REPORT ----------------
+
     report_dir = os.path.join(base, "reports")
     os.makedirs(report_dir, exist_ok=True)
     pdf_path = os.path.join(report_dir, "expense_report.pdf")
@@ -196,22 +215,21 @@ def upload():
     c.drawString(40, 800, "Expense Report")
     c.save()
 
-    return {
+    return jsonify({
         "total_expense": total_debit,
         "total_debit": total_debit,
         "total_credit": total_credit,
         "top_category": max(category_summary, key=category_summary.get) if category_summary else "—",
         "monthly_expense": monthly_expense,
         "monthly_category": monthly_category
-    }
+    })
 
 
-# ---------- DOWNLOAD ----------
 @app.route("/download-report")
 def download_report():
     if LAST_PDF_PATH and os.path.exists(LAST_PDF_PATH):
         return send_file(LAST_PDF_PATH, as_attachment=True)
-    return {"error": "No report"}, 404
+    return jsonify({"error": "No report"}), 404
 
 
 if __name__ == "__main__":
