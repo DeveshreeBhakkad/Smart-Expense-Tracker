@@ -3,6 +3,7 @@ import os, csv
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
+from pypdf import PdfReader   # ✅ Phase B1 import
 
 app = Flask(__name__)
 LAST_PDF_PATH = None
@@ -73,13 +74,39 @@ def upload():
     if file.filename == "":
         return {"error": "No file selected"}, 400
 
+    # ---------- PHASE B1: PDF DETECTION ONLY ----------
+    if file.filename.lower().endswith(".pdf"):
+       base = os.path.dirname(os.path.abspath(__file__))
+       upload_dir = os.path.join(base, "uploads")
+       os.makedirs(upload_dir, exist_ok=True)
+
+       pdf_path = os.path.join(upload_dir, file.filename)
+       file.save(pdf_path)
+
+       try:
+           reader = PdfReader(pdf_path, strict=False)
+
+        # If PDF opens but is encrypted
+           if reader.is_encrypted:
+               return {"password_required": True}, 200
+
+        # PDF opened without password (rare for banks)
+           return {"error": "PDF detected (parsing not enabled yet)"}, 400
+
+       except Exception:
+        # 🔥 Bank PDFs land here → treat as password protected
+           return {"password_required": True}, 200
+
+
+    # -------------------------------------------------
+
     base = os.path.dirname(os.path.abspath(__file__))
     upload_dir = os.path.join(base, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
     path = os.path.join(upload_dir, file.filename)
     file.save(path)
 
-    # -------- CSV READ WITH ENCODING FALLBACK (FIX) --------
+    # ---------- CSV READ WITH ENCODING FALLBACK ----------
     rows = None
     for enc in ("utf-8", "utf-8-sig", "cp1252", "latin-1"):
         try:
@@ -134,7 +161,7 @@ def upload():
             except:
                 pass
 
-    # -------- SIMPLE PDF (UNCHANGED) --------
+    # ---------- SIMPLE PDF REPORT (UNCHANGED) ----------
     report_dir = os.path.join(base, "reports")
     os.makedirs(report_dir, exist_ok=True)
     pdf_path = os.path.join(report_dir, "expense_report.pdf")
