@@ -3,7 +3,7 @@ import os, csv
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from pypdf import PdfReader   # ✅ Phase B1 import
+from pypdf import PdfReader
 
 app = Flask(__name__)
 LAST_PDF_PATH = None
@@ -26,7 +26,6 @@ def parse_transaction_row(row):
     def clean(v):
         return v.replace(",", "").strip()
 
-    # Debit formats
     for k in ["Debit", "Withdrawal"]:
         if k in row and row[k].strip():
             try:
@@ -34,7 +33,6 @@ def parse_transaction_row(row):
             except:
                 return None
 
-    # Credit formats
     for k in ["Credit", "Deposit"]:
         if k in row and row[k].strip():
             try:
@@ -42,7 +40,6 @@ def parse_transaction_row(row):
             except:
                 return None
 
-    # Generic amount column
     if "Amount" in row and row["Amount"].strip():
         try:
             amt = float(clean(row["Amount"]))
@@ -74,39 +71,47 @@ def upload():
     if file.filename == "":
         return {"error": "No file selected"}, 400
 
-    # ---------- PHASE B1: PDF DETECTION ONLY ----------
-    if file.filename.lower().endswith(".pdf"):
-       base = os.path.dirname(os.path.abspath(__file__))
-       upload_dir = os.path.join(base, "uploads")
-       os.makedirs(upload_dir, exist_ok=True)
-
-       pdf_path = os.path.join(upload_dir, file.filename)
-       file.save(pdf_path)
-
-       try:
-           reader = PdfReader(pdf_path, strict=False)
-
-        # If PDF opens but is encrypted
-           if reader.is_encrypted:
-               return {"password_required": True}, 200
-
-        # PDF opened without password (rare for banks)
-           return {"error": "PDF detected (parsing not enabled yet)"}, 400
-
-       except Exception:
-        # 🔥 Bank PDFs land here → treat as password protected
-           return {"password_required": True}, 200
-
-
-    # -------------------------------------------------
-
     base = os.path.dirname(os.path.abspath(__file__))
     upload_dir = os.path.join(base, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
     path = os.path.join(upload_dir, file.filename)
     file.save(path)
 
-    # ---------- CSV READ WITH ENCODING FALLBACK ----------
+    # ================= PDF PATH (PHASE B2) =================
+    if file.filename.lower().endswith(".pdf"):
+        password = request.form.get("password")
+
+        try:
+            reader = PdfReader(path, strict=False)
+        except Exception:
+            # Bank PDFs often land here
+            if not password:
+                return {"password_required": True}, 200
+            else:
+                return {"error": "Unable to open PDF even with password"}, 400
+
+        if reader.is_encrypted:
+            if not password:
+                return {"password_required": True}, 200
+
+            if not reader.decrypt(password):
+                return {"error": "Incorrect PDF password"}, 400
+
+        # ✅ PDF is now open and decrypted
+        extracted_text = ""
+        for page in reader.pages:
+            extracted_text += page.extract_text() or ""
+
+        if not extracted_text.strip():
+            return {"error": "PDF opened but no readable text found"}, 400
+
+        # Phase B2 success
+        return {
+            "message": "PDF decrypted and text extracted successfully",
+            "text_length": len(extracted_text)
+        }, 200
+
+    # ================= CSV PATH (UNCHANGED) =================
     rows = None
     for enc in ("utf-8", "utf-8-sig", "cp1252", "latin-1"):
         try:
@@ -161,7 +166,6 @@ def upload():
             except:
                 pass
 
-    # ---------- SIMPLE PDF REPORT (UNCHANGED) ----------
     report_dir = os.path.join(base, "reports")
     os.makedirs(report_dir, exist_ok=True)
     pdf_path = os.path.join(report_dir, "expense_report.pdf")
@@ -191,6 +195,5 @@ def download_report():
     return {"error": "No report"}, 404
 
 
-# ---------------- RUN ----------------
 if __name__ == "__main__":
     app.run(debug=True)
