@@ -1,36 +1,111 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
   <title>Smart Expense Tracker</title>
-  <link rel="stylesheet" href="/static/style.css">
+  <link rel="stylesheet" href="/static/style.css" />
 </head>
+
 <body>
 
-<section class="hero">
+<!-- ===== CENTER HEADER ===== -->
+<header class="top-header">
   <h1>Smart Expense Tracker</h1>
-  <p class="subtitle">Turn your bank statement into clarity ✨</p>
+  <p>Turn your bank statement into clarity ✨</p>
+</header>
 
-  <div class="upload-box">
+<div class="app-container">
+
+  <!-- ================= SIDEBAR ================= -->
+  <aside class="sidebar">
+
     <form id="uploadForm">
-      <input type="file" id="fileInput" required>
+      <label class="file-label">
+        Upload Statement
+        <input type="file" name="file" id="fileInput" />
+      </label>
 
-      <!-- Password field (hidden by default) -->
-      <input type="password" id="pdfPassword"
-             placeholder="Enter PDF password"
-             class="hidden">
+      <input
+        type="password"
+        id="pdfPassword"
+        placeholder="Enter PDF password"
+        class="hidden"
+      />
 
-      <button type="submit" id="uploadBtn">Upload & Analyze</button>
+      <button type="submit" class="btn-primary">Analyze</button>
     </form>
 
-    <p id="statusMessage" class="status"></p>
-  </div>
-</section>
+    <p id="statusMessage" class="status-text"></p>
 
-<section id="insights" class="insights hidden">
-  <h2>Total Expense</h2>
-  <div id="totalExpense"></div>
-</section>
+    <button id="analyzeAnother" class="btn-secondary hidden">
+      Analyze Another
+    </button>
+  </aside>
+
+  <!-- ================= MAIN ================= -->
+  <main class="main-content">
+
+    <!-- ===== SUMMARY CARDS ===== -->
+    <section class="summary-cards">
+      <div class="card">
+        <h4>Total Expense</h4>
+        <div id="totalExpense" class="big-amount">₹ 0</div>
+      </div>
+
+      <div class="card">
+        <h4>Total Debit</h4>
+        <div id="totalDebit">₹ 0</div>
+      </div>
+
+      <div class="card">
+        <h4>Total Credit</h4>
+        <div id="totalCredit">₹ 0</div>
+      </div>
+
+      <div class="card">
+        <h4>Top Category</h4>
+        <div id="topCategory">—</div>
+      </div>
+    </section>
+
+    <!-- ===== DEBIT / CREDIT ===== -->
+    <section class="dc-summary">
+      <div class="dc-box debit">
+        <span>Debit</span>
+        <strong id="dcDebit">₹ 0</strong>
+      </div>
+
+      <div class="dc-box credit">
+        <span>Credit</span>
+        <strong id="dcCredit">₹ 0</strong>
+      </div>
+    </section>
+
+    <!-- ===== MONTHLY ===== -->
+    <section class="monthly-section">
+      <h2>Monthly Breakdown</h2>
+
+      <div class="monthly-grid">
+        <div>
+          <h3>Debit</h3>
+          <div id="monthlyDebit"></div>
+          <button id="downloadDebit" class="btn-small">⬇ Expense Report</button>
+        </div>
+
+        <div>
+          <h3>Credit</h3>
+          <div id="monthlyCredit"></div>
+          <button id="downloadCredit" class="btn-small">⬇ Credit Report</button>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<footer class="footer-note">
+  🔒 Your data stays local. Nothing is stored or uploaded.
+</footer>
 
 <script src="/static/script.js"></script>
 </body>
