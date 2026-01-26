@@ -7,40 +7,53 @@
 </head>
 <body>
 
+<!-- ================= HERO ================= -->
 <section class="hero">
     <h1>Smart Expense Tracker</h1>
-    <p class="subtitle">Turn your bank statement into clarity ✨</p>
+    <p class="subtitle">
+        Turn your bank statement into clarity ✨
+    </p>
 
     <div class="upload-box">
         <form id="uploadForm">
             <input type="file" name="file" required />
-            <input type="password" id="pdfPassword" placeholder="PDF Password (if any)" style="display:none;" />
-            <button id="uploadBtn" type="submit">Upload & Analyze</button>
+            <button id="uploadBtn" type="submit">
+                Upload Statement
+            </button>
         </form>
+
+        <p class="helper-text">
+            Your data stays local. Nothing is stored.
+        </p>
 
         <p id="statusMessage" class="status"></p>
     </div>
 </section>
 
+<!-- ================= INSIGHTS ================= -->
 <section id="insights" class="insights hidden">
+
     <div class="primary-insight">
-        <h2>Total Expense</h2>
+        <h2>You spent</h2>
         <div class="amount" id="totalExpense">₹ —</div>
+        <p class="muted">this month</p>
     </div>
 
     <div class="context">
-        <p>Total Debit: <span id="totalDebit">₹ —</span></p>
-        <p>Total Credit: <span id="totalCredit">₹ —</span></p>
-        <p>Top Category: <span id="topCategory">—</span></p>
+        <p><strong>Money In:</strong> <span id="totalCredit">₹ —</span></p>
+        <p><strong>Money Out:</strong> <span id="totalDebit">₹ —</span></p>
+        <p><strong>Most spent on:</strong> <span id="topCategory">—</span></p>
     </div>
 
     <div class="monthly">
-        <h3>Monthly Expenses</h3>
+        <h3>Your monthly spending story</h3>
         <div id="monthlyContainer"></div>
-        <a href="/download-report" class="download">Download PDF</a>
     </div>
+
 </section>
 
+<!-- 🔴 THIS LINE WAS MISSING — ABSOLUTELY REQUIRED -->
 <script src="/static/script.js"></script>
+
 </body>
 </html>

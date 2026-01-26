@@ -1,10 +1,11 @@
-const form = document.getElementById("uploadForm");
+
+const form = document.getElementById("uploadForm"); 
 const statusMessage = document.getElementById("statusMessage");
 const insightsSection = document.getElementById("insights");
 const monthlyContainer = document.getElementById("monthlyContainer");
 
 form.addEventListener("submit", async (e) => {
-    e.preventDefault(); // 🔴 THIS IS WHAT PREVENTS PAGE RELOAD
+    e.preventDefault(); // STOP page reload
 
     const fileInput = form.querySelector("input[type='file']");
     const button = document.getElementById("uploadBtn");
@@ -36,13 +37,18 @@ form.addEventListener("submit", async (e) => {
             return;
         }
 
+        // ✅ Reveal insights
         insightsSection.classList.remove("hidden");
 
+        // ✅ Fill primary insight
         document.getElementById("totalExpense").textContent = `₹ ${data.total_expense}`;
+
+        // ✅ Supporting context
         document.getElementById("totalDebit").textContent = `₹ ${data.total_debit}`;
         document.getElementById("totalCredit").textContent = `₹ ${data.total_credit}`;
         document.getElementById("topCategory").textContent = data.top_category;
 
+        // ✅ Monthly story
         monthlyContainer.innerHTML = "";
 
         Object.keys(data.monthly_expense).forEach(month => {
@@ -64,8 +70,7 @@ form.addEventListener("submit", async (e) => {
             });
 
             title.onclick = () => {
-                details.style.display =
-                    details.style.display === "none" ? "block" : "none";
+                details.style.display = details.style.display === "none" ? "block" : "none";
             };
 
             monthDiv.appendChild(title);
@@ -76,11 +81,11 @@ form.addEventListener("submit", async (e) => {
         statusMessage.textContent = "Statement processed successfully.";
         statusMessage.className = "status success";
 
-    } catch {
+    } catch (err) {
         statusMessage.textContent = "Server error. Please try again.";
         statusMessage.className = "status error";
     } finally {
         button.disabled = false;
-        button.textContent = "Upload & Analyze";
+        button.textContent = "Upload Statement";
     }
 });

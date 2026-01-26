@@ -1,3 +1,4 @@
+/* ---------- RESET ---------- */
 * {
     margin: 0;
     padding: 0;
@@ -5,49 +6,53 @@
     font-family: "Inter", Arial, sans-serif;
 }
 
+/* ---------- BASE ---------- */
 body {
     background: radial-gradient(circle at top, #0b1220, #020617);
     color: #e5e7eb;
-    height: 100vh;
-    overflow: hidden;
+    min-height: 100vh;
+    line-height: 1.6;
 }
 
-/* ===== CONTAINER ===== */
-.app-container {
-    max-width: 1200px;
-    margin: 0 auto;
-    height: 100vh;
+/* ---------- HERO ---------- */
+.hero {
+    min-height: 100vh;
     display: flex;
     flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 40px;
 }
 
-/* ===== HEADER ===== */
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 28px 20px;
-    border-bottom: 1px solid #1f2933;
+.hero h1 {
+    font-size: 48px;
+    margin-bottom: 10px;
 }
 
 .subtitle {
-    font-size: 14px;
+    font-size: 18px;
     color: #9ca3af;
-    margin-top: 4px;
+    margin-bottom: 40px;
 }
 
+/* ---------- UPLOAD ---------- */
 .upload-box {
     background: rgba(2, 6, 23, 0.8);
-    padding: 14px;
-    border-radius: 12px;
+    padding: 30px;
+    border-radius: 14px;
+    width: 100%;
+    max-width: 420px;
 }
 
 .upload-box input {
-    margin-right: 8px;
+    width: 100%;
+    margin-bottom: 15px;
 }
 
 .upload-box button {
-    padding: 8px 14px;
+    width: 100%;
+    padding: 12px;
     background: #22c55e;
     border: none;
     border-radius: 8px;
@@ -55,136 +60,97 @@ body {
     cursor: pointer;
 }
 
-.upload-box button:disabled {
-    opacity: 0.6;
+.upload-box button:hover {
+    background: #16a34a;
+}
+
+.helper-text {
+    margin-top: 10px;
+    font-size: 13px;
+    color: #6b7280;
 }
 
 .status {
-    font-size: 12px;
-    margin-top: 6px;
-}
-
-.status.success { color: #22c55e; }
-.status.error { color: #ef4444; }
-
-/* ===== MAIN ===== */
-main {
-    flex: 1;
-    padding: 25px 20px;
-    overflow: hidden;
-}
-
-/* ===== CARDS ===== */
-.cards {
-    display: grid;
-    grid-template-columns: repeat(4, 1fr);
-    gap: 18px;
-    margin-bottom: 25px;
-}
-
-.card {
-    background: rgba(2, 6, 23, 0.9);
-    padding: 18px;
-    border-radius: 14px;
-    text-align: center;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.35);
-}
-
-.card span {
-    font-size: 13px;
-    color: #9ca3af;
-}
-
-.card strong {
-    display: block;
-    margin-top: 8px;
-    font-size: 22px;
-}
-
-.card.primary strong {
-    font-size: 30px;
-}
-
-/* ===== MONTHLY ===== */
-.monthly {
-    background: rgba(2, 6, 23, 0.9);
-    border-radius: 18px;
-    padding: 20px;
-    height: 420px;
-    display: flex;
-    flex-direction: column;
-}
-
-.monthly-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 12px;
-}
-
-.download-btn {
-    font-size: 14px;
-    color: #22c55e;
-    text-decoration: none;
-}
-
-.monthly-container {
-    overflow-y: auto;
-    padding-right: 6px;
-}
-
-/* ===== MONTH CARDS ===== */
-.month {
-    padding: 14px;
-    border-radius: 12px;
-    background: rgba(15, 23, 42, 0.6);
-    margin-bottom: 10px;
-    cursor: pointer;
-}
-
-.month:hover {
-    background: rgba(15, 23, 42, 0.9);
-}
-
-.month-title {
-    font-weight: 600;
-    display: flex;
-    justify-content: space-between;
-}
-
-.month-details {
     margin-top: 10px;
-    padding-left: 12px;
-    display: none;
+    font-size: 14px;
 }
 
-.month-details p {
-    font-size: 13px;
-    color: #9ca3af;
-    margin-bottom: 4px;
+.status.success {
+    color: #22c55e;
 }
 
-/* ===== HELPERS ===== */
+.status.error {
+    color: #ef4444;
+}
+
+/* ---------- INSIGHTS ---------- */
+.insights {
+    padding: 80px 20px;
+    max-width: 900px;
+    margin: 0 auto;
+}
+
 .hidden {
     display: none;
 }
 
-
-body {
-    background: #020617;
-    color: #e5e7eb;
-    font-family: Arial, sans-serif;
-    padding: 40px;
+/* ---------- PRIMARY INSIGHT ---------- */
+.primary-insight {
+    text-align: center;
+    margin-bottom: 50px;
 }
 
-button {
-    padding: 10px 15px;
-    background: #22c55e;
-    border: none;
+.primary-insight h2 {
+    font-size: 22px;
+    color: #9ca3af;
+}
+
+.primary-insight .amount {
+    font-size: 56px;
+    font-weight: bold;
+    margin: 10px 0;
+}
+
+.muted {
+    color: #6b7280;
+}
+
+/* ---------- CONTEXT ---------- */
+.context {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 60px;
+    flex-wrap: wrap;
+    gap: 20px;
+}
+
+.context p {
+    font-size: 15px;
+    color: #d1d5db;
+}
+
+/* ---------- MONTHLY ---------- */
+.monthly h3 {
+    font-size: 22px;
+    margin-bottom: 20px;
+}
+
+.month {
+    padding: 15px 0;
+    border-bottom: 1px solid #1f2933;
     cursor: pointer;
 }
 
-.status.success { color: #22c55e; }
-.status.error { color: #ef4444; }
+.month-title {
+    font-weight: 600;
+}
 
-.hidden { display: none; }
+.month-details {
+    margin-top: 10px;
+    padding-left: 15px;
+}
+
+.month-details p {
+    font-size: 14px;
+    color: #9ca3af;
+}
