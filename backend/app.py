@@ -1,9 +1,11 @@
 from flask import Flask, request, send_file, redirect
-import os, csv
+import os, csv, io
 from datetime import datetime
 from reportlab.lib.pagesizes import A4
 from reportlab.pdfgen import canvas
-from pypdf import PdfReader
+
+import pdfplumber
+from PyPDF2 import PdfReader
 
 app = Flask(__name__)
 LAST_PDF_PATH = None
@@ -23,8 +25,7 @@ def upload_form():
 
 # ---------- UNIVERSAL CSV ROW PARSER ----------
 def parse_transaction_row(row):
-    def clean(v):
-        return v.replace(",", "").strip()
+    def clean(v): return v.replace(",", "").strip()
 
     for k in ["Debit", "Withdrawal"]:
         if k in row and row[k].strip():
@@ -59,7 +60,33 @@ def parse_transaction_row(row):
     return None
 
 
-# ---------------- UPLOAD ----------------
+# ---------- PDF TEXT EXTRACTION ----------
+def extract_text_from_pdf(path, password=None):
+    try:
+        reader = PdfReader(path)
+        if reader.is_encrypted:
+            if not password:
+                return None, "PASSWORD_REQUIRED"
+            if not reader.decrypt(password):
+                return None, "WRONG_PASSWORD"
+
+        text = ""
+        with pdfplumber.open(path, password=password) as pdf:
+            for page in pdf.pages:
+                page_text = page.extract_text()
+                if page_text:
+                    text += page_text + "\n"
+
+        if not text.strip():
+            return None, "NO_TEXT"
+
+        return text, None
+
+    except Exception as e:
+        return None, str(e)
+
+
+# ---------- UPLOAD ----------
 @app.route("/upload", methods=["POST"])
 def upload():
     global LAST_PDF_PATH
@@ -68,64 +95,58 @@ def upload():
         return {"error": "No file uploaded"}, 400
 
     file = request.files["file"]
+    password = request.form.get("password")
+
     if file.filename == "":
         return {"error": "No file selected"}, 400
 
     base = os.path.dirname(os.path.abspath(__file__))
     upload_dir = os.path.join(base, "uploads")
     os.makedirs(upload_dir, exist_ok=True)
+
     path = os.path.join(upload_dir, file.filename)
     file.save(path)
 
-    # ================= PDF PATH (PHASE B2) =================
-    if file.filename.lower().endswith(".pdf"):
-        password = request.form.get("password")
+    rows = []
 
+    # ---------- CSV ----------
+    if file.filename.lower().endswith(".csv"):
         try:
-            reader = PdfReader(path, strict=False)
-        except Exception:
-            # Bank PDFs often land here
-            if not password:
-                return {"password_required": True}, 200
-            else:
-                return {"error": "Unable to open PDF even with password"}, 400
-
-        if reader.is_encrypted:
-            if not password:
-                return {"password_required": True}, 200
-
-            if not reader.decrypt(password):
-                return {"error": "Incorrect PDF password"}, 400
-
-        # ✅ PDF is now open and decrypted
-        extracted_text = ""
-        for page in reader.pages:
-            extracted_text += page.extract_text() or ""
-
-        if not extracted_text.strip():
-            return {"error": "PDF opened but no readable text found"}, 400
-
-        # Phase B2 success
-        return {
-            "message": "PDF decrypted and text extracted successfully",
-            "text_length": len(extracted_text)
-        }, 200
-
-    # ================= CSV PATH (UNCHANGED) =================
-    rows = None
-    for enc in ("utf-8", "utf-8-sig", "cp1252", "latin-1"):
-        try:
-            with open(path, newline="", encoding=enc) as f:
+            with open(path, newline="", encoding="utf-8", errors="ignore") as f:
                 rows = list(csv.DictReader(f))
-            break
-        except UnicodeDecodeError:
-            continue
+        except:
+            return {"error": "Invalid CSV file"}, 400
 
-    if rows is None:
-        return {"error": "Unsupported CSV encoding"}, 400
+    # ---------- PDF ----------
+    elif file.filename.lower().endswith(".pdf"):
+        text, status = extract_text_from_pdf(path, password)
 
-    total_debit = 0
-    total_credit = 0
+        if status == "PASSWORD_REQUIRED":
+            return {"error": "PDF is password protected. Please enter password."}, 400
+
+        if status == "WRONG_PASSWORD":
+            return {"error": "Incorrect PDF password."}, 400
+
+        if status == "NO_TEXT":
+            return {
+                "error": "PDF opened but no readable text found. OCR support coming next."
+            }, 400
+
+        if text is None:
+            return {"error": "Failed to read PDF."}, 400
+
+        # ❗ Phase B2 limitation:
+        # PDF text is extracted but not tabular-normalized yet
+        return {
+            "message": "PDF opened successfully, but structured table parsing is coming next.",
+            "raw_preview": text[:1000]
+        }
+
+    else:
+        return {"error": "Unsupported file type"}, 400
+
+    # ---------- EXPENSE LOGIC (UNCHANGED) ----------
+    total_debit = total_credit = 0
     category_summary = {}
     monthly_expense = {}
     monthly_category = {}
@@ -140,6 +161,7 @@ def upload():
         date_str = row.get("Date", "")
 
         if txn_type == "credit":
+            category = "Income"
             total_credit += amount
         else:
             if "swiggy" in desc or "zomato" in desc:
@@ -160,12 +182,11 @@ def upload():
                 month = datetime.strptime(date_str, "%Y-%m-%d").strftime("%Y-%m")
                 monthly_expense[month] = monthly_expense.get(month, 0) + amount
                 monthly_category.setdefault(month, {})
-                monthly_category[month][category] = (
-                    monthly_category[month].get(category, 0) + amount
-                )
+                monthly_category[month][category] = monthly_category[month].get(category, 0) + amount
             except:
                 pass
 
+    # ---------- PDF REPORT ----------
     report_dir = os.path.join(base, "reports")
     os.makedirs(report_dir, exist_ok=True)
     pdf_path = os.path.join(report_dir, "expense_report.pdf")
@@ -179,15 +200,13 @@ def upload():
         "total_expense": total_debit,
         "total_debit": total_debit,
         "total_credit": total_credit,
-        "top_category": max(category_summary, key=category_summary.get)
-        if category_summary
-        else "—",
+        "top_category": max(category_summary, key=category_summary.get) if category_summary else "—",
         "monthly_expense": monthly_expense,
-        "monthly_category": monthly_category,
+        "monthly_category": monthly_category
     }
 
 
-# ---------------- DOWNLOAD ----------------
+# ---------- DOWNLOAD ----------
 @app.route("/download-report")
 def download_report():
     if LAST_PDF_PATH and os.path.exists(LAST_PDF_PATH):
