@@ -1,146 +1,191 @@
-# Smart Expense Tracker 💸
 
-Smart Expense Tracker is a Flask-based web application that analyzes bank statements<br>
-(CSV currently, PDF support in progress) and presents clean, human-friendly insights
-about spending behavior.
+# 💳 Smart Expense Tracker
 
-The focus of this project is:
-- Real-world statement parsing
-- Clean backend logic
-- A pleasant, website-like UI (not a dashboard)
-- Gradual feature expansion with stability
+**Turn raw bank statements into meaningful financial insights**
+
+🔗 **Live Demo:** [https://smart-expense-tracker-8e3h.onrender.com](https://smart-expense-tracker-8e3h.onrender.com)
 
 ---
 
-## ✨ Features Implemented (Working)
+## 🚀 Overview
 
-### 1. CSV Upload & Analysis
-- Upload bank statement CSV files
-- Supports multiple bank formats:
-  - Debit / Credit
-  - Withdrawal / Deposit
-  - Amount + DR/CR columns
-- Automatically detects:
-  - Debit vs Credit
-  - Transaction amount
-  - Description
-  - Date
+Bank statements are dense, unstructured, and hard to analyze manually — especially PDFs from different banks with varying formats.
 
-### 2. Expense Insights
-- Total Expense
-- Total Debit
-- Total Credit
-- Top Spending Category
-- Monthly Expenses
-- Category-wise breakdown inside each month (expand/collapse)
+**Smart Expense Tracker** solves this by allowing users to upload **CSV or PDF bank statements (including password-protected PDFs)** and instantly get:
 
-### 3. Smart Categorization
-Transactions are categorized using description keywords:
-- Food (Swiggy, Zomato)
-- Shopping (Amazon, Flipkart)
-- Travel (Uber, Ola)
-- Utilities (Recharge)
-- Others (fallback)
+* Expense & income summaries
+* Category-wise spending
+* Monthly debit & credit breakdowns
+* Downloadable structured reports
 
-### 4. PDF Report Generation
-- Generates a basic expense PDF report
-- Downloadable from UI
-
-### 5. Clean UI (High Priority)
-- Dark, modern theme
-- Website-like experience
-- Expandable monthly insights
-- UI kept **stable intentionally**
+All processing happens **locally on the server** — no data is stored.
 
 ---
 
-## 🧪 In Progress (Not Final Yet)
+## ✨ Key Features
 
-### PDF Statement Parsing
-- Detects password-protected PDFs
-- UI shows warning when PDF is encrypted
-- Password input UI exists
-- Actual PDF text extraction logic still under refinement
+### 📂 Universal Statement Support
 
-⚠️ PDF parsing is **not stable yet** and intentionally paused to avoid breaking the app.
+* ✅ CSV bank statements
+* ✅ PDF statements (text-based & OCR-based)
+* ✅ Password-protected PDFs (secure prompt)
 
----
+### 📊 Financial Insights
 
-## 📂 Project Structure
-```bash
-Smart-Expense-Tracker/
-│
-├── backend/
-│ ├── app.py
-│ ├── upload.html
-│ ├── uploads/
-│ ├── reports/
-│ └── static/
-│  ├── style.css
-│  └── script.js
-│
-├── venv/
-└── README.md
-```
----
+* Total Expense, Total Debit, Total Credit
+* Top spending category
+* Monthly debit breakdown
+* Monthly credit breakdown
+* Smart rule-based insights (spending vs income, peak month, etc.)
 
+### 📑 Structured Reports
 
-> Note:  
-All frontend files (`upload.html`, `static/`) live **inside the backend folder**.
+* Separate **Debit Report** & **Credit Report**
+* Category-wise totals
+* Detailed transaction tables (date, description, amount)
+* Professionally formatted PDF downloads
+
+### 🎨 Clean UI / UX
+
+* Sidebar-based upload flow
+* Fixed action buttons
+* Scrollable insights (not the entire page)
+* Clear visual separation of debit vs credit
+* Mobile-friendly layout
 
 ---
 
-## ▶️ How to Run
+## 🧠 Smart Rule-Based Insights (Current)
 
-```bash
-python backend/app.py
-```
+The system automatically derives insights such as:
 
-### Then open directly:
-```bash
-http://127.0.0.1:5000/
-```
+* 💸 Expenses higher than income
+* ✅ Savings detected
+* 📊 Most spent category
+* 📆 Highest spending month
 
-✅ No need to type /upload-form
+> These rules are intentionally deterministic — similar to how early fintech products work before ML is introduced.
 
 ---
 
-## ⚠️ Known Issues (Expected)
+## 🏗 Architecture Overview
 
-  - Some CSV files fail due to encoding (utf-8 vs latin-1)
-  - PDF parsing may hang or fail for some bank formats
-  - Password-protected PDFs not fully supported yet
+**Flow:**
 
-These are planned fixes, not bugs.
-
----
-
-## 🧭 Development Philosophy
-
-- Backend stability first
-- UI frozen unless explicitly approved
-- Features added step-by-step
-- No rushed changes
-- Real bank statements as test cases
+1. User uploads CSV / PDF
+2. Backend detects file type
+3. If PDF:
+   * Checks encryption
+   * Extracts text via `pdfplumber`
+   * Falls back to OCR (`Tesseract + Poppler`)
+4. Transactions normalized into a common schema
+5. Insights generated
+6. UI updated dynamically
+7. Reports generated on demand
 
 ---
 
 ## 🛠 Tech Stack
 
-- Python
-- Flask
-- HTML / CSS / Vanilla JS
-- ReportLab (PDF)
-- CSV module
+### Backend
+
+* Python 3
+* Flask
+* Gunicorn (production)
+* pdfplumber
+* PyPDF2
+* pytesseract
+* pdf2image
+* ReportLab
+
+### Frontend
+
+* HTML
+* CSS (custom, no framework)
+* Vanilla JavaScript (fetch-based API calls)
+
+### Deployment
+
+* Render (Free tier)
 
 ---
 
-## 👩‍💻 Author
+## 📂 Project Structure
 
-Built by Deveshree<br>
-Final year AIML student<br>
-Portfolio-grade system, not a toy project.
-
+```bash
+Smart-Expense-Tracker/
+│
+├── app.py
+├── upload.html
+├── static/
+│   ├── style.css
+│   └── script.js
+├── uploads/
+├── reports/
+└── requirements.txt
+```
 
 ---
+
+## ▶️ How to Run Locally
+
+```bash
+git clone https://github.com/DeveshreeBhakkad/Smart-Expense-Tracker
+cd Smart-Expense-Tracker
+pip install -r requirements.txt
+python app.py
+```
+
+Open:
+👉 `http://127.0.0.1:5000`
+
+---
+
+## 🌐 Deployment
+
+The application is deployed on **Render** using:
+
+* `gunicorn app:app`
+* Python runtime
+* No external database required
+
+🔗 **Live URL:**
+https://smart-expense-tracker-8e3h.onrender.com
+
+---
+
+## 🔒 Data Privacy
+
+* No user data is stored
+* Uploaded files are processed temporarily
+* Passwords are never logged or saved
+
+---
+
+## 🚧 Future Enhancements
+
+* ML-based expense categorization
+* Spending trend prediction
+* Budget alerts
+* User authentication
+* Multi-statement comparison
+* Export to Excel
+
+---
+
+## 🙌 Why This Project Matters
+
+This project demonstrates:
+
+* Real-world data handling (messy PDFs)
+* Backend + frontend integration
+* Secure file processing
+* Deployment & debugging skills
+* Product-thinking, not just coding
+
+---
+
+## Author
+
+Deveshree Bhakkad 
 
