@@ -10,6 +10,9 @@ from PyPDF2 import PdfReader
 import pytesseract
 from pdf2image import convert_from_path
 
+# ---------- GLOBAL STORE ----------
+PARSED_TRANSACTIONS = []
+
 app = Flask(__name__)
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -32,38 +35,57 @@ def upload_form():
     return open(os.path.join(BASE_DIR, "upload.html"), encoding="utf-8").read()
 
 
+# ---------------- CATEGORY DETECTOR (ADDED) ----------------
+def detect_category(description):
+    d = description.lower()
+    if "swiggy" in d or "zomato" in d:
+        return "Food"
+    if "amazon" in d or "flipkart" in d:
+        return "Shopping"
+    if "uber" in d or "ola" in d:
+        return "Travel"
+    if "upi" in d:
+        return "UPI"
+    return "Others"
+
+
 # ---------------- UNIVERSAL TRANSACTION MODEL ----------------
 def normalize_txn(date, desc, amt, txn_type):
     return {
         "date": date,
         "description": desc.strip(),
         "amount": float(amt),
-        "type": txn_type
+        "type": txn_type,
+        "category": detect_category(desc)
     }
 
 
-# ---------------- CSV PARSER (UNCHANGED) ----------------
+# ---------------- CSV PARSER (UNCHANGED + STORE ADDED) ----------------
 def parse_csv(path):
     txns = []
     with open(path, newline="", encoding="utf-8", errors="ignore") as f:
         for row in csv.DictReader(f):
             for k in ["Debit", "Withdrawal"]:
                 if k in row and row[k].strip():
-                    txns.append(normalize_txn(
+                    txn = normalize_txn(
                         row.get("Date", ""),
                         row.get("Description", ""),
                         row[k].replace(",", ""),
                         "debit"
-                    ))
+                    )
+                    txns.append(txn)
+                    PARSED_TRANSACTIONS.append(txn)
 
             for k in ["Credit", "Deposit"]:
                 if k in row and row[k].strip():
-                    txns.append(normalize_txn(
+                    txn = normalize_txn(
                         row.get("Date", ""),
                         row.get("Description", ""),
                         row[k].replace(",", ""),
                         "credit"
-                    ))
+                    )
+                    txns.append(txn)
+                    PARSED_TRANSACTIONS.append(txn)
     return txns
 
 
@@ -91,7 +113,6 @@ def extract_pdf_text(path, password=None):
     if text.strip():
         return "TEXT", text
 
-    # OCR fallback
     images = convert_from_path(path)
     for img in images:
         text += pytesseract.image_to_string(img)
@@ -99,7 +120,7 @@ def extract_pdf_text(path, password=None):
     return "TEXT", text
 
 
-# ---------------- UNIVERSAL OCR TRANSACTION PARSER ----------------
+# ---------------- OCR TRANSACTION PARSER (FIXED) ----------------
 def parse_ocr_text(text):
     txns = []
 
@@ -115,7 +136,6 @@ def parse_ocr_text(text):
     for line in text.splitlines():
         line_clean = line.lower()
 
-        # detect date
         date = None
         for dp in date_patterns:
             m = re.search(dp, line)
@@ -125,41 +145,42 @@ def parse_ocr_text(text):
         if not date:
             continue
 
-        # detect amount
         amt_match = re.search(amount_pattern, line.replace(",", ""))
         if not amt_match:
             continue
-        amount = amt_match.group().replace(",", "")
 
-        # detect type
-        txn_type = None
+        amount = float(amt_match.group().replace(",", ""))
+
         if any(k in line_clean for k in debit_keywords):
             txn_type = "debit"
         elif any(k in line_clean for k in credit_keywords):
             txn_type = "credit"
         else:
-            continue  # cannot decide type
+            continue
 
-        # description cleanup
-        desc = line
-        desc = re.sub(date, "", desc)
+        desc = re.sub(date, "", line)
         desc = desc.replace(amt_match.group(), "")
         desc = re.sub(r"(dr|cr|debit|credit)", "", desc, flags=re.I)
 
-        txns.append({
+        txn = {
             "date": date.replace("/", "-"),
             "description": desc.strip(),
-            "amount": float(amount),
-            "type": txn_type
-        })
+            "amount": amount,
+            "type": txn_type,
+            "category": detect_category(desc)
+        }
+
+        txns.append(txn)
+        PARSED_TRANSACTIONS.append(txn)
 
     return txns
 
 
-# ---------------- INSIGHTS ENGINE ----------------
+# ---------------- INSIGHTS ENGINE (CREDIT FIXED) ----------------
 def generate_insights(txns):
     total_debit = total_credit = 0
     monthly = {}
+    monthly_credit = {}
     categories = {}
 
     for t in txns:
@@ -169,15 +190,7 @@ def generate_insights(txns):
 
         if t["type"] == "debit":
             total_debit += amt
-            if "swiggy" in desc or "zomato" in desc:
-                cat = "Food"
-            elif "amazon" in desc or "flipkart" in desc:
-                cat = "Shopping"
-            elif "upi" in desc:
-                cat = "UPI"
-            else:
-                cat = "Others"
-
+            cat = t["category"]
             categories[cat] = categories.get(cat, 0) + amt
 
             try:
@@ -188,20 +201,27 @@ def generate_insights(txns):
 
         else:
             total_credit += amt
+            try:
+                m = datetime.strptime(date, "%d-%m-%Y").strftime("%Y-%m")
+                monthly_credit[m] = monthly_credit.get(m, 0) + amt
+            except:
+                pass
 
     return {
         "total_expense": total_debit,
         "total_debit": total_debit,
         "total_credit": total_credit,
         "top_category": max(categories, key=categories.get) if categories else "—",
-        "monthly_expense": monthly
+        "monthly_expense": monthly,
+        "monthly_credit": monthly_credit
     }
 
 
 # ---------------- UPLOAD ENDPOINT ----------------
 @app.route("/upload", methods=["POST"])
 def upload():
-    global LAST_PDF_PATH
+    global LAST_PDF_PATH, PARSED_TRANSACTIONS
+    PARSED_TRANSACTIONS = []
 
     if "file" not in request.files:
         return jsonify({"error": "No file uploaded"}), 400
@@ -231,69 +251,64 @@ def upload():
 
     insights = generate_insights(txns)
 
-    # Simple PDF report
     pdf_path = os.path.join(REPORT_DIR, "expense_report.pdf")
     LAST_PDF_PATH = pdf_path
     c = canvas.Canvas(pdf_path, pagesize=A4)
     c.drawString(40, 800, "Expense Report")
-    y = 760
-    for k, v in insights.items():
-        c.drawString(40, y, f"{k}: {v}")
-        y -= 20
     c.save()
 
     return jsonify(insights)
 
 
+# ---------------- DOWNLOAD REPORT ----------------
 @app.route("/download-report")
 def download_report():
-    report_type = request.args.get("type")  # debit or credit
+    report_type = request.args.get("type")
 
-    if not LAST_PDF_PATH or not os.path.exists(LAST_PDF_PATH):
-        return {"error": "No report available"}, 404
+    if not PARSED_TRANSACTIONS:
+        return {"error": "No data available"}, 400
 
-    # Data already prepared earlier during upload
-    from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.lib.styles import getSampleStyleSheet
     from reportlab.lib.units import inch
 
-    base = os.path.dirname(os.path.abspath(__file__))
-    output = os.path.join(base, f"{report_type}_report.pdf")
-
-    doc = SimpleDocTemplate(output, pagesize=A4)
+    output_path = os.path.join(BASE_DIR, f"{report_type}_report.pdf")
+    doc = SimpleDocTemplate(output_path, pagesize=A4)
     styles = getSampleStyleSheet()
     story = []
 
-    title = "Expense Report" if report_type == "debit" else "Credit Report"
+    title = "Expense Report (Debit)" if report_type == "debit" else "Credit Report"
     story.append(Paragraph(f"<b>{title}</b>", styles["Title"]))
     story.append(Spacer(1, 0.3 * inch))
 
-    data_source = request.environ.get("parsed_transactions", [])
+    filtered = [t for t in PARSED_TRANSACTIONS if t["type"] == report_type]
+
+    if not filtered:
+        story.append(Paragraph("No transactions found.", styles["Normal"]))
+        doc.build(story)
+        return send_file(output_path, as_attachment=True)
 
     category_map = {}
+    for txn in filtered:
+        category_map.setdefault(txn["category"], []).append(txn)
 
-    for txn in data_source:
-        if txn["type"] != report_type:
-            continue
-
-        cat = txn["category"]
-        category_map.setdefault(cat, [])
-        category_map[cat].append(txn)
-
-    for cat, txns in category_map.items():
+    for category, txns in category_map.items():
         total = sum(t["amount"] for t in txns)
         story.append(Spacer(1, 0.2 * inch))
-        story.append(Paragraph(f"<b>{cat} — ₹ {total}</b>", styles["Heading2"]))
+        story.append(Paragraph(f"<b>▼ {category} — ₹ {total}</b>", styles["Heading2"]))
 
         for t in txns:
-            line = f"{t['date']} | {t['description']} | ₹ {t['amount']} | {t['type'].upper()}"
-            story.append(Paragraph(line, styles["Normal"]))
+            story.append(
+                Paragraph(
+                    f"{t['date']} | {t['description']} | ₹ {t['amount']} | {t['type'].upper()}",
+                    styles["Normal"]
+                )
+            )
 
     doc.build(story)
-
-    return send_file(output, as_attachment=True)
-
+    return send_file(output_path, as_attachment=True)
 
 
 if __name__ == "__main__":
     app.run(debug=True)
+
