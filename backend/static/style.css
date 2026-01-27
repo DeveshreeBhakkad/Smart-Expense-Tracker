@@ -128,13 +128,20 @@ input[type="password"] {
 }
 
 .btn-small {
-  margin-top: 10px;
-  padding: 8px 14px;
+  margin-top: 8px;
+  padding: 6px 12px;          /* ⬅ smaller height */
+  font-size: 13px;            /* ⬅ smaller text */
   background: #22c55e;
   border: none;
   border-radius: 6px;
   cursor: pointer;
+  width: fit-content;         /* ⬅ prevents full-width stretching */
 }
+
+.btn-small:hover {
+  background: #16a34a;
+}
+
 
 /* ===== HEADER ===== */
 .top-header {
