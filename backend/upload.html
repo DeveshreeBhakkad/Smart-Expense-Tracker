@@ -38,7 +38,7 @@
     <p id="statusMessage" class="status-text"></p>
 
     <button id="analyzeAnother" class="btn-secondary hidden">
-      Analyze Another
+      Analyze New Statement
     </button>
   </aside>
 
@@ -52,15 +52,16 @@
         <div id="totalExpense" class="big-amount">₹ 0</div>
       </div>
 
-      <div class="card">
-        <h4>Total Debit</h4>
-        <div id="totalDebit">₹ 0</div>
-      </div>
+       <div class="card small-kpi">
+         <h4>Total Debit</h4>
+         <div id="totalDebit">₹ 0</div>
+       </div>
 
-      <div class="card">
-        <h4>Total Credit</h4>
-        <div id="totalCredit">₹ 0</div>
-      </div>
+       <div class="card small-kpi">
+         <h4>Total Credit</h4>
+         <div id="totalCredit">₹ 0</div>
+       </div>
+
 
       <div class="card">
         <h4>Top Category</h4>
@@ -119,6 +120,17 @@
     </section>
 
   </main>
+  <div class="card insights-card">
+  <h4>🧠 Smart Insights</h4>
+  <p id="insightLine">Upload a statement to see insights</p>
+</div>
+
+
+  <ul id="insightsList" class="hidden">
+    <!-- dynamically filled -->
+  </ul>
+</section>
+
 </div>
 
 <!-- ===== FIXED FOOTER ===== -->

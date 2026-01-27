@@ -183,22 +183,32 @@ def generate_insights(txns):
     monthly_credit = {}
     categories = {}
 
+    # 🔹 NEW (added – safe)
+    large_transactions = []
+    
     for t in txns:
         amt = t["amount"]
         date = t["date"]
         desc = t["description"].lower()
 
+        # -------- DEBIT --------
         if t["type"] == "debit":
             total_debit += amt
             cat = t["category"]
             categories[cat] = categories.get(cat, 0) + amt
 
+            # monthly debit
             try:
                 m = datetime.strptime(date, "%d-%m-%Y").strftime("%Y-%m")
                 monthly[m] = monthly.get(m, 0) + amt
             except:
                 pass
 
+            # large transaction flag (added)
+            if amt >= 5000:
+                large_transactions.append(t)
+
+        # -------- CREDIT --------
         else:
             total_credit += amt
             try:
@@ -207,15 +217,40 @@ def generate_insights(txns):
             except:
                 pass
 
+            # large transaction flag (added)
+            if amt >= 5000:
+                large_transactions.append(t)
+
+    # 🔹 NEW INSIGHTS (added safely)
+    highest_spending_month = (
+        max(monthly, key=monthly.get) if monthly else None
+    )
+
+    net_status = (
+        "Saver" if total_credit > total_debit else "Spender"
+    )
+
+    expense_ratio = (
+        round((total_debit / total_credit) * 100, 2)
+        if total_credit > 0 else None
+    )
+
+    # 🔹 FINAL RESPONSE (existing keys preserved + new keys added)
     return {
+        # existing (DO NOT TOUCH)
         "total_expense": total_debit,
         "total_debit": total_debit,
         "total_credit": total_credit,
         "top_category": max(categories, key=categories.get) if categories else "—",
         "monthly_expense": monthly,
-        "monthly_credit": monthly_credit
-    }
+        "monthly_credit": monthly_credit,
 
+        # 🔥 added insights
+        "highest_spending_month": highest_spending_month,
+        "net_status": net_status,
+        "expense_ratio": expense_ratio,
+        "large_transaction_count": len(large_transactions)
+    }
 
 # ---------------- UPLOAD ENDPOINT ----------------
 @app.route("/upload", methods=["POST"])

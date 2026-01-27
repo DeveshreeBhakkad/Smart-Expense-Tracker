@@ -52,6 +52,41 @@ form.addEventListener("submit", async (e) => {
   document.getElementById("totalCredit").textContent = `₹ ${json.total_credit}`;
   document.getElementById("topCategory").textContent = json.top_category;
 
+  // ---- Smart Insights ----
+const insightEl = document.getElementById("insightLine");
+
+let insights = [];
+
+// Rule 1: Expense vs Income
+if (json.total_debit > json.total_credit) {
+  insights.push("💸 Your expenses are higher than your income.");
+} else if (json.total_credit > json.total_debit) {
+  insights.push("✅ You saved more than you spent.");
+}
+
+// Rule 2: Top category
+if (json.top_category && json.top_category !== "—") {
+  insights.push(`📊 Most spending happened on ${json.top_category}.`);
+}
+
+// Rule 3: Highest expense month
+if (json.monthly_expense) {
+  const entries = Object.entries(json.monthly_expense);
+  if (entries.length > 0) {
+    const [maxMonth] = entries.reduce((a, b) => (b[1] > a[1] ? b : a));
+    insights.push(`📆 Highest spending month: ${maxMonth}.`);
+  }
+}
+
+// Fallback
+if (insights.length === 0) {
+  insights.push("No significant spending patterns detected.");
+}
+
+// Show only 2–3 insights (clean UI)
+insightEl.innerHTML = insights.join("<br>");
+
+
   // -------- DEBIT / CREDIT MINI SUMMARY --------
   document.getElementById("dcDebit").textContent = `₹ ${json.total_debit}`;
   document.getElementById("dcCredit").textContent = `₹ ${json.total_credit}`;
