@@ -173,5 +173,72 @@ input[type="password"] {
   padding: 12px;
 }
 
+/* ================= FIXES (ADDED ONLY) ================= */
+
+/* ---- Fixed footer (caution line) ---- */
+.footer-note {
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  width: 100%;
+  background: rgba(2, 6, 23, 0.98);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  z-index: 50;
+}
+
+/* Prevent content hiding behind footer */
+.main-content {
+  padding-bottom: 80px;
+}
+
+/* ---- Monthly sections scroll internally ---- */
+#monthlyDebit,
+#monthlyCredit {
+  max-height: 260px;
+  overflow-y: auto;
+  padding-right: 6px;
+}
+
+/* Scrollbar styling (subtle) */
+#monthlyDebit::-webkit-scrollbar,
+#monthlyCredit::-webkit-scrollbar {
+  width: 6px;
+}
+
+#monthlyDebit::-webkit-scrollbar-thumb,
+#monthlyCredit::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 6px;
+}
+
+/* ---- Smaller download buttons ---- */
+.btn-small {
+  display: inline-block;
+  margin-top: 8px;
+  padding: 6px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  background: #22c55e;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+/* Prevent button overlap */
+.monthly-grid > div {
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- Prevent layout breaking on small screens ---- */
+@media (max-width: 900px) {
+  .monthly-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .dc-summary {
+    flex-direction: column;
+  }
+}
+
 /* (everything else remains SAME as before) */
 

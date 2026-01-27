@@ -27,16 +27,17 @@ form.addEventListener("submit", async (e) => {
   });
 
   const json = await res.json();
-  
-  if (json.error === "PASSWORD_REQUIRED") {
-  pdfPassword.classList.remove("hidden");
-  statusMessage.textContent = "Password required.";
-  return;
-  }
 
-  if (json.error === "PDF_PASSWORD_REQUIRED") {
+  // -------- PASSWORD HANDLING --------
+  if (json.error === "PASSWORD_REQUIRED") {
     pdfPassword.classList.remove("hidden");
     statusMessage.textContent = "Password required.";
+    return;
+  }
+
+  if (json.error === "INCORRECT_PASSWORD") {
+    pdfPassword.classList.remove("hidden");
+    statusMessage.textContent = "Incorrect password. Please try again.";
     return;
   }
 
@@ -45,30 +46,32 @@ form.addEventListener("submit", async (e) => {
     return;
   }
 
-  // ---- Fill summary ----
+  // -------- SUMMARY --------
   document.getElementById("totalExpense").textContent = `₹ ${json.total_expense}`;
   document.getElementById("totalDebit").textContent = `₹ ${json.total_debit}`;
   document.getElementById("totalCredit").textContent = `₹ ${json.total_credit}`;
   document.getElementById("topCategory").textContent = json.top_category;
 
-  // ---- Debit Credit summary ----
+  // -------- DEBIT / CREDIT MINI SUMMARY --------
   document.getElementById("dcDebit").textContent = `₹ ${json.total_debit}`;
   document.getElementById("dcCredit").textContent = `₹ ${json.total_credit}`;
 
-  // ---- Monthly breakdown ----
+  // -------- MONTHLY BREAKDOWN --------
   const debitBox = document.getElementById("monthlyDebit");
   const creditBox = document.getElementById("monthlyCredit");
+
   debitBox.innerHTML = "";
   creditBox.innerHTML = "";
 
+  // Debit months
   Object.entries(json.monthly_expense || {}).forEach(([month, amt]) => {
     debitBox.innerHTML += `<p>${month} — ₹ ${amt}</p>`;
   });
 
-  Object.entries(json.monthly_expense || {}).forEach(([month, amt]) => {
-    debitBox.innerHTML += `<p>${month} — ₹ ${amt}</p>`;
+  // Credit months (FIXED)
+  Object.entries(json.monthly_credit || {}).forEach(([month, amt]) => {
+    creditBox.innerHTML += `<p>${month} — ₹ ${amt}</p>`;
   });
-
 
   statusMessage.textContent = "Analysis complete.";
   analyzeAnother.classList.remove("hidden");
@@ -76,6 +79,7 @@ form.addEventListener("submit", async (e) => {
 
 analyzeAnother.onclick = () => window.location.reload();
 
+// -------- DOWNLOAD REPORTS --------
 document.getElementById("downloadDebit")?.addEventListener("click", () => {
   window.open("/download-report?type=debit", "_blank");
 });

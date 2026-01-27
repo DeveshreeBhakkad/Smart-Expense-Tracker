@@ -263,17 +263,31 @@ def upload():
 # ---------------- DOWNLOAD REPORT ----------------
 @app.route("/download-report")
 def download_report():
-    report_type = request.args.get("type")
+    report_type = request.args.get("type")  # debit or credit
 
     if not PARSED_TRANSACTIONS:
-        return {"error": "No data available"}, 400
+        return jsonify({
+            "error": "NO_DATA",
+            "message": "Please analyze a statement before downloading report."
+        })
 
-    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle
     from reportlab.lib.styles import getSampleStyleSheet
+    from reportlab.lib.pagesizes import A4
     from reportlab.lib.units import inch
+    from reportlab.lib import colors
 
     output_path = os.path.join(BASE_DIR, f"{report_type}_report.pdf")
-    doc = SimpleDocTemplate(output_path, pagesize=A4)
+
+    doc = SimpleDocTemplate(
+        output_path,
+        pagesize=A4,
+        rightMargin=30,
+        leftMargin=30,
+        topMargin=30,
+        bottomMargin=30
+    )
+
     styles = getSampleStyleSheet()
     story = []
 
@@ -288,25 +302,68 @@ def download_report():
         doc.build(story)
         return send_file(output_path, as_attachment=True)
 
+    # -------- GROUP BY CATEGORY --------
     category_map = {}
     for txn in filtered:
         category_map.setdefault(txn["category"], []).append(txn)
 
+    grand_total = 0
+
     for category, txns in category_map.items():
         total = sum(t["amount"] for t in txns)
+        grand_total += total
+
         story.append(Spacer(1, 0.2 * inch))
-        story.append(Paragraph(f"<b>▼ {category} — ₹ {total}</b>", styles["Heading2"]))
+        story.append(
+            Paragraph(f"<b>{category} — ₹ {total:.2f}</b>", styles["Heading2"])
+        )
+        story.append(Spacer(1, 0.1 * inch))
+
+        # -------- TABLE DATA (FIXED) --------
+        table_data = [
+            [
+                Paragraph("Date", styles["Normal"]),
+                Paragraph("Description", styles["Normal"]),
+                Paragraph("Amount (₹)", styles["Normal"]),
+            ]
+        ]
 
         for t in txns:
-            story.append(
-                Paragraph(
-                    f"{t['date']} | {t['description']} | ₹ {t['amount']} | {t['type'].upper()}",
-                    styles["Normal"]
-                )
-            )
+            table_data.append([
+                Paragraph(t["date"], styles["Normal"]),
+                Paragraph(t["description"], styles["Normal"]),
+                Paragraph(f"{t['amount']:.2f}", styles["Normal"])
+            ])
+
+        table = Table(
+            table_data,
+            colWidths=[80, 300, 80],
+            repeatRows=1
+        )
+
+        table.setStyle(TableStyle([
+            ("BACKGROUND", (0, 0), (-1, 0), colors.lightgrey),
+            ("GRID", (0, 0), (-1, -1), 0.5, colors.grey),
+            ("ALIGN", (2, 1), (2, -1), "RIGHT"),
+            ("VALIGN", (0, 0), (-1, -1), "TOP"),
+            ("FONTNAME", (0, 0), (-1, 0), "Helvetica-Bold"),
+            ("BOTTOMPADDING", (0, 0), (-1, 0), 8),
+            ("TOPPADDING", (0, 0), (-1, 0), 8),
+        ]))
+
+        story.append(table)
+
+    story.append(Spacer(1, 0.3 * inch))
+    story.append(
+        Paragraph(
+            f"<b>GRAND TOTAL — ₹ {grand_total:.2f}</b>",
+            styles["Heading1"]
+        )
+    )
 
     doc.build(story)
     return send_file(output_path, as_attachment=True)
+
 
 
 if __name__ == "__main__":

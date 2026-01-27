@@ -68,7 +68,7 @@
       </div>
     </section>
 
-    <!-- ===== DEBIT / CREDIT ===== -->
+    <!-- ===== DEBIT / CREDIT SUMMARY ===== -->
     <section class="dc-summary">
       <div class="dc-box debit">
         <span>Debit</span>
@@ -81,28 +81,47 @@
       </div>
     </section>
 
-    <!-- ===== MONTHLY ===== -->
+    <!-- ===== MONTHLY BREAKDOWN ===== -->
     <section class="monthly-section">
       <h2>Monthly Breakdown</h2>
 
       <div class="monthly-grid">
-        <div>
+
+        <!-- DEBIT COLUMN -->
+        <div class="monthly-column" id="debitColumn">
           <h3>Debit</h3>
           <div id="monthlyDebit"></div>
-          <button id="downloadDebit" class="btn-small">⬇ Expense Report</button>
+
+          <!-- ADDED: data-report -->
+          <button
+            id="downloadDebit"
+            class="btn-small"
+            data-report="debit">
+            ⬇ Expense Report
+          </button>
         </div>
 
-        <div>
+        <!-- CREDIT COLUMN -->
+        <div class="monthly-column" id="creditColumn">
           <h3>Credit</h3>
           <div id="monthlyCredit"></div>
-          <button id="downloadCredit" class="btn-small">⬇ Credit Report</button>
+
+          <!-- ADDED: data-report -->
+          <button
+            id="downloadCredit"
+            class="btn-small"
+            data-report="credit">
+            ⬇ Credit Report
+          </button>
         </div>
+
       </div>
     </section>
 
   </main>
 </div>
 
+<!-- ===== FIXED FOOTER ===== -->
 <footer class="footer-note">
   🔒 Your data stays local. Nothing is stored or uploaded.
 </footer>
